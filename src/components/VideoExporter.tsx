@@ -48,40 +48,61 @@ export const VideoExporter = ({ isOpen, onClose, photos }: VideoExporterProps) =
 
   // Load FFmpeg on mount
   useEffect(() => {
+    let isMounted = true;
+    
     const loadFFmpeg = async () => {
-      if (ffmpegRef.current) return;
+      if (ffmpegRef.current && ffmpegLoaded) return;
       
       setLoadingStage("Loading video engine...");
-      const ffmpeg = new FFmpeg();
-      ffmpegRef.current = ffmpeg;
-
-      ffmpeg.on("progress", ({ progress: p }) => {
-        setProgress(Math.round(p * 100));
-      });
-
-      ffmpeg.on("log", ({ message }) => {
-        console.log("[FFmpeg]", message);
-      });
-
+      
       try {
-        // Load FFmpeg core from CDN
-        const baseURL = "https://unpkg.com/@ffmpeg/core@0.12.6/dist/esm";
-        await ffmpeg.load({
+        const ffmpeg = new FFmpeg();
+        
+        ffmpeg.on("progress", ({ progress: p }) => {
+          if (isMounted) setProgress(Math.round(p * 100));
+        });
+
+        ffmpeg.on("log", ({ message }) => {
+          console.log("[FFmpeg]", message);
+        });
+
+        // Use jsdelivr CDN - more reliable than unpkg
+        const baseURL = "https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.6/dist/esm";
+        
+        // Load with timeout to prevent infinite hanging
+        const loadPromise = ffmpeg.load({
           coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, "text/javascript"),
           wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, "application/wasm"),
         });
-        setFfmpegLoaded(true);
-        setLoadingStage("");
+        
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error("Loading timed out")), 60000)
+        );
+        
+        await Promise.race([loadPromise, timeoutPromise]);
+        
+        if (isMounted) {
+          ffmpegRef.current = ffmpeg;
+          setFfmpegLoaded(true);
+          setLoadingStage("");
+          console.log("[FFmpeg] Successfully loaded");
+        }
       } catch (error) {
         console.error("FFmpeg load error:", error);
-        toast.error("Failed to load video engine");
-        setLoadingStage("");
+        if (isMounted) {
+          toast.error("Failed to load video engine. Please refresh and try again.");
+          setLoadingStage("Failed to load");
+        }
       }
     };
 
     if (isOpen && !ffmpegLoaded) {
       loadFFmpeg();
     }
+    
+    return () => {
+      isMounted = false;
+    };
   }, [isOpen, ffmpegLoaded]);
 
   // Cleanup preview URL
@@ -414,9 +435,19 @@ export const VideoExporter = ({ isOpen, onClose, photos }: VideoExporterProps) =
           {/* Actions */}
           <div className="flex gap-3">
             {!ffmpegLoaded && !isLoading ? (
-              <Button disabled className="flex-1">
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Loading Video Engine...
+              <Button 
+                disabled={loadingStage !== "Failed to load"} 
+                onClick={loadingStage === "Failed to load" ? () => window.location.reload() : undefined}
+                className="flex-1"
+              >
+                {loadingStage === "Failed to load" ? (
+                  <>Reload Page to Retry</>
+                ) : (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Loading Video Engine...
+                  </>
+                )}
               </Button>
             ) : previewUrl ? (
               <>
