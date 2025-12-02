@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Download, ChevronLeft, ChevronRight, Play, Pause, SkipBack, SkipForward, Video } from "lucide-react";
+import { X, Download, ChevronLeft, ChevronRight, Play, Pause, SkipBack, SkipForward, Video, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { BeforeAfterSlider } from "./BeforeAfterSlider";
@@ -9,22 +9,32 @@ import { toast } from "sonner";
 import JSZip from "jszip";
 import { saveAs } from "file-saver";
 
+interface Layout {
+  type: string;
+  description?: string;
+  preview?: string;
+  beforePhotoIndex?: number;
+  afterPhotoIndex?: number;
+  photoIndices?: number[];
+}
+
 interface LayoutPreviewModalProps {
   isOpen: boolean;
   onClose: () => void;
-  layout: {
-    type: string;
-    description?: string;
-    preview?: string;
-    beforePhotoIndex?: number;
-    afterPhotoIndex?: number;
-    photoIndices?: number[];
-  };
+  layout: Layout;
   photos: Array<{ url: string; timestamp?: string }>;
+  onUpdateLayout?: (updatedLayout: Layout) => void;
 }
 
-export const LayoutPreviewModal = ({ isOpen, onClose, layout, photos }: LayoutPreviewModalProps) => {
-  const layoutType = layout.type.toLowerCase();
+export const LayoutPreviewModal = ({ isOpen, onClose, layout, photos, onUpdateLayout }: LayoutPreviewModalProps) => {
+  const [editableLayout, setEditableLayout] = useState<Layout>(layout);
+  
+  // Sync when layout prop changes
+  useEffect(() => {
+    setEditableLayout(layout);
+  }, [layout]);
+
+  const layoutType = editableLayout.type.toLowerCase();
   const isBeforeAfter = layoutType.includes('before') || layoutType.includes('after');
   const isCarousel = layoutType.includes('carousel');
   const isGrid = layoutType.includes('grid');
@@ -39,17 +49,64 @@ export const LayoutPreviewModal = ({ isOpen, onClose, layout, photos }: LayoutPr
 
   const getLayoutPhotos = () => {
     if (isBeforeAfter) {
-      const beforeIdx = layout.beforePhotoIndex ?? 0;
-      const afterIdx = layout.afterPhotoIndex ?? photos.length - 1;
+      const beforeIdx = editableLayout.beforePhotoIndex ?? 0;
+      const afterIdx = editableLayout.afterPhotoIndex ?? photos.length - 1;
       return [photos[beforeIdx], photos[afterIdx]].filter(Boolean);
     }
-    if (layout.photoIndices) {
-      return layout.photoIndices.map(idx => photos[idx]).filter(Boolean);
+    if (editableLayout.photoIndices) {
+      return editableLayout.photoIndices.map(idx => photos[idx]).filter(Boolean);
     }
     return photos;
   };
 
+  const getPhotoIndices = () => {
+    if (isBeforeAfter) {
+      return [editableLayout.beforePhotoIndex ?? 0, editableLayout.afterPhotoIndex ?? photos.length - 1];
+    }
+    if (editableLayout.photoIndices) {
+      return editableLayout.photoIndices;
+    }
+    return photos.map((_, i) => i);
+  };
+
   const layoutPhotos = getLayoutPhotos();
+  const photoIndices = getPhotoIndices();
+
+  const removePhotoFromLayout = (indexInLayout: number) => {
+    if (layoutPhotos.length <= 1) {
+      toast.error("Cannot remove the last photo from this layout");
+      return;
+    }
+
+    let updatedLayout: Layout;
+
+    if (isBeforeAfter) {
+      // For before/after, we can't remove - need both photos
+      toast.error("Before/After layout requires exactly 2 photos");
+      return;
+    } else if (editableLayout.photoIndices) {
+      // Remove from photoIndices array
+      const newIndices = editableLayout.photoIndices.filter((_, i) => i !== indexInLayout);
+      updatedLayout = { ...editableLayout, photoIndices: newIndices };
+    } else {
+      // Create photoIndices from all photos except the removed one
+      const allIndices = photos.map((_, i) => i).filter((_, i) => i !== indexInLayout);
+      updatedLayout = { ...editableLayout, photoIndices: allIndices };
+    }
+
+    setEditableLayout(updatedLayout);
+    onUpdateLayout?.(updatedLayout);
+
+    // Adjust slideshow/carousel index if needed
+    if (slideshowIndex >= updatedLayout.photoIndices!.length) {
+      setSlideshowIndex(Math.max(0, updatedLayout.photoIndices!.length - 1));
+    }
+    if (carouselIndex >= updatedLayout.photoIndices!.length) {
+      setCarouselIndex(Math.max(0, updatedLayout.photoIndices!.length - 1));
+    }
+
+    toast.success("Photo removed from layout");
+  };
 
   // Slideshow auto-play
   useEffect(() => {
@@ -179,16 +236,29 @@ export const LayoutPreviewModal = ({ isOpen, onClose, layout, photos }: LayoutPr
               {/* Thumbnail strip */}
               <div className="flex gap-2 justify-center flex-wrap">
                 {layoutPhotos.slice(0, 20).map((photo, idx) => (
-                  <motion.button
-                    key={idx}
-                    onClick={() => setSlideshowIndex(idx)}
-                    className={`w-14 h-14 rounded-lg overflow-hidden border-2 transition-all ${
-                      idx === slideshowIndex ? "border-primary ring-2 ring-primary/30" : "border-transparent opacity-60 hover:opacity-100"
-                    }`}
-                    whileHover={{ scale: 1.05 }}
-                  >
-                    <img src={photo.url} alt="" className="w-full h-full object-cover" />
-                  </motion.button>
+                  <div key={idx} className="relative group">
+                    <motion.button
+                      onClick={() => setSlideshowIndex(idx)}
+                      className={`w-14 h-14 rounded-lg overflow-hidden border-2 transition-all ${
+                        idx === slideshowIndex ? "border-primary ring-2 ring-primary/30" : "border-transparent opacity-60 hover:opacity-100"
+                      }`}
+                      whileHover={{ scale: 1.05 }}
+                    >
+                      <img src={photo.url} alt="" className="w-full h-full object-cover" />
+                    </motion.button>
+                    {/* Delete button */}
+                    {onUpdateLayout && layoutPhotos.length > 1 && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          removePhotoFromLayout(idx);
+                        }}
+                        className="absolute -top-1 -right-1 w-5 h-5 bg-destructive text-destructive-foreground rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-md hover:bg-destructive/90"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    )}
+                  </div>
                 ))}
                 {layoutPhotos.length > 20 && (
                   <div className="w-14 h-14 rounded-lg bg-muted flex items-center justify-center text-xs font-medium">
@@ -225,7 +295,7 @@ export const LayoutPreviewModal = ({ isOpen, onClose, layout, photos }: LayoutPr
           {/* Carousel with Navigation */}
           {isCarousel && !isBeforeAfter && !isSlideshow && (
             <div className="space-y-4">
-              <div className="relative aspect-square max-w-2xl mx-auto">
+              <div className="relative aspect-square max-w-2xl mx-auto group">
                 <AnimatePresence mode="wait">
                   <motion.img
                     key={carouselIndex}
@@ -238,6 +308,18 @@ export const LayoutPreviewModal = ({ isOpen, onClose, layout, photos }: LayoutPr
                     transition={{ duration: 0.3 }}
                   />
                 </AnimatePresence>
+
+                {/* Delete button for current photo */}
+                {onUpdateLayout && layoutPhotos.length > 1 && (
+                  <Button
+                    variant="destructive"
+                    size="icon"
+                    className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity shadow-lg"
+                    onClick={() => removePhotoFromLayout(carouselIndex)}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                )}
 
                 {/* Navigation */}
                 {carouselIndex > 0 && (
@@ -285,16 +367,26 @@ export const LayoutPreviewModal = ({ isOpen, onClose, layout, photos }: LayoutPr
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4 max-w-2xl mx-auto">
                 {layoutPhotos.map((photo, idx) => (
-                  <motion.img
-                    key={idx}
-                    src={photo.url}
-                    alt={`Grid ${idx + 1}`}
-                    className="w-full aspect-square object-cover rounded-xl"
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ delay: idx * 0.1 }}
-                    whileHover={{ scale: 1.02 }}
-                  />
+                  <div key={idx} className="relative group">
+                    <motion.img
+                      src={photo.url}
+                      alt={`Grid ${idx + 1}`}
+                      className="w-full aspect-square object-cover rounded-xl"
+                      initial={{ opacity: 0, scale: 0.9 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ delay: idx * 0.1 }}
+                      whileHover={{ scale: 1.02 }}
+                    />
+                    {/* Delete button */}
+                    {onUpdateLayout && layoutPhotos.length > 1 && (
+                      <button
+                        onClick={() => removePhotoFromLayout(idx)}
+                        className="absolute top-2 right-2 w-7 h-7 bg-destructive text-destructive-foreground rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-md hover:bg-destructive/90"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    )}
+                  </div>
                 ))}
               </div>
               <p className="text-center text-sm text-muted-foreground">
