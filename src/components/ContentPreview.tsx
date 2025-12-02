@@ -87,8 +87,8 @@ export const ContentPreview = ({ content }: ContentPreviewProps) => {
                     )}
                   </div>
                   
-                  {/* Layout Preview */}
-                  {layout.type === 'carousel' && (
+                  {/* Layout Preview - Case-insensitive matching */}
+                  {layout.type.toLowerCase().includes('carousel') && (
                     <div className="flex gap-2 overflow-x-auto pb-2">
                       {content.photos.slice(0, 4).map((photo, pIdx) => (
                         <img 
@@ -101,7 +101,7 @@ export const ContentPreview = ({ content }: ContentPreviewProps) => {
                     </div>
                   )}
                   
-                  {layout.type === 'before-after' && content.photos.length >= 2 && (
+                  {(layout.type.toLowerCase().includes('before') && layout.type.toLowerCase().includes('after')) && content.photos.length >= 2 && (
                     <div className="grid grid-cols-2 gap-2">
                       <div className="space-y-1">
                         <img 
@@ -122,7 +122,7 @@ export const ContentPreview = ({ content }: ContentPreviewProps) => {
                     </div>
                   )}
                   
-                  {layout.type === 'single-highlight' && content.photos.length > 0 && (
+                  {(layout.type.toLowerCase().includes('single') || layout.type.toLowerCase().includes('highlight')) && content.photos.length > 0 && (
                     <img 
                       src={content.photos[0].url} 
                       alt="Highlight"
@@ -130,7 +130,7 @@ export const ContentPreview = ({ content }: ContentPreviewProps) => {
                     />
                   )}
                   
-                  {layout.type === 'grid' && (
+                  {layout.type.toLowerCase().includes('grid') && (
                     <div className="grid grid-cols-2 gap-2">
                       {content.photos.slice(0, 4).map((photo, pIdx) => (
                         <img 
