@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { motion } from "framer-motion";
 import { PhotoUploader } from "@/components/PhotoUploader";
 import { ContentPreview } from "@/components/ContentPreview";
 import { ProjectSelector } from "@/components/ProjectSelector";
@@ -12,6 +13,19 @@ import { Header } from "@/components/Header";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import heroImage from "@/assets/hero-construction.jpg";
+
+const fadeInUp = {
+  hidden: { opacity: 0, y: 30 },
+  visible: { opacity: 1, y: 0 }
+};
+
+const staggerContainer = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: { staggerChildren: 0.1 }
+  }
+};
 
 interface CompanyDetails {
   name: string;
@@ -246,17 +260,34 @@ const Index = () => {
         />
         <div className="absolute inset-0 bg-gradient-to-b from-background via-background/95 to-background" />
         <div className="relative container mx-auto px-4 py-20 md:py-28">
-          <div className="max-w-3xl mx-auto text-center space-y-8 animate-fade-in">
-            <h1 className="text-4xl sm:text-5xl md:text-6xl font-display font-bold text-foreground tracking-tighter leading-[1.1]">
+          <motion.div 
+            className="max-w-3xl mx-auto text-center space-y-8"
+            initial="hidden"
+            animate="visible"
+            variants={staggerContainer}
+          >
+            <motion.h1 
+              className="text-4xl sm:text-5xl md:text-6xl font-display font-bold text-foreground tracking-tighter leading-[1.1]"
+              variants={fadeInUp}
+              transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+            >
               Transform Job Photos into 
               <span className="block gradient-text-primary mt-3">
                 Social Media Gold
               </span>
-            </h1>
-            <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto leading-relaxed">
+            </motion.h1>
+            <motion.p 
+              className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto leading-relaxed"
+              variants={fadeInUp}
+              transition={{ duration: 0.6, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
+            >
               Upload your construction project photos and let AI create engaging social media content with captions, hashtags, and professional layouts.
-            </p>
-            <div className="flex flex-wrap justify-center gap-8 pt-6">
+            </motion.p>
+            <motion.div 
+              className="flex flex-wrap justify-center gap-8 pt-6"
+              variants={fadeInUp}
+              transition={{ duration: 0.6, delay: 0.2, ease: [0.22, 1, 0.36, 1] }}
+            >
               <div className="flex items-center gap-3 group">
                 <div className="h-11 w-11 rounded-xl bg-accent/10 flex items-center justify-center transition-spring group-hover:scale-105 group-hover:bg-accent/15">
                   <Sparkles className="h-5 w-5 text-accent" />
@@ -275,8 +306,8 @@ const Index = () => {
                 </div>
                 <span className="text-sm font-semibold tracking-tight">Pro Layouts</span>
               </div>
-            </div>
-          </div>
+            </motion.div>
+          </motion.div>
         </div>
         <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-border to-transparent" />
       </section>
@@ -300,17 +331,27 @@ const Index = () => {
         ) : (
           <>
             {/* Saved Projects Section */}
-            <section className="animate-fade-in">
+            <motion.section
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, margin: "-50px" }}
+              transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+            >
               <ProjectSelector
                 projects={projects}
                 loading={loadingProjects}
                 onSelect={handleLoadProject}
                 onDelete={handleDeleteProject}
               />
-            </section>
+            </motion.section>
 
             {/* Photo Upload Section */}
-            <section className="animate-fade-in" style={{ animationDelay: '100ms' }}>
+            <motion.section
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, margin: "-50px" }}
+              transition={{ duration: 0.5, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
+            >
               <PhotoUploader 
                 onUpload={handlePhotosUpload}
                 onProcess={handleProcess}
@@ -318,18 +359,23 @@ const Index = () => {
                 photoCount={uploadedPhotos.length}
                 processingProgress={processingProgress}
               />
-            </section>
+            </motion.section>
 
             {/* Content Preview Section */}
             {processedContent && (
-              <section className="animate-fade-in" style={{ animationDelay: '200ms' }}>
+              <motion.section
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, margin: "-50px" }}
+                transition={{ duration: 0.5, delay: 0.15, ease: [0.22, 1, 0.36, 1] }}
+              >
                 <ContentPreview 
                   content={processedContent}
                   onSave={handleSaveClick}
                   currentProjectName={currentProjectName}
                   isSaved={isSaved}
                 />
-              </section>
+              </motion.section>
             )}
           </>
         )}
@@ -345,13 +391,19 @@ const Index = () => {
       />
 
       {/* Footer */}
-      <footer className="mt-20 py-10 border-t border-border/50">
+      <motion.footer 
+        className="mt-20 py-10 border-t border-border/50"
+        initial={{ opacity: 0 }}
+        whileInView={{ opacity: 1 }}
+        viewport={{ once: true }}
+        transition={{ duration: 0.6 }}
+      >
         <div className="container mx-auto px-4 text-center">
           <p className="text-sm text-muted-foreground tracking-tight">
             Powered by <span className="font-semibold text-foreground">BuildPost AI</span> • Transform your construction content instantly
           </p>
         </div>
-      </footer>
+      </motion.footer>
     </div>
   );
 };

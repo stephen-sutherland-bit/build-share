@@ -1,4 +1,5 @@
-import { Building2, Settings, LogOut, ShieldCheck, Shield } from "lucide-react";
+import { Building2, Settings, LogOut, ShieldCheck, Shield, Moon, Sun } from "lucide-react";
+import { useTheme } from "next-themes";
 import { Link } from "react-router-dom";
 import {
   DropdownMenu,
@@ -14,9 +15,14 @@ import { useAuth } from "@/hooks/useAuth";
 
 export const Header = () => {
   const { user, role, signOut } = useAuth();
+  const { theme, setTheme } = useTheme();
 
   const getInitials = (email: string) => {
     return email.charAt(0).toUpperCase();
+  };
+
+  const toggleTheme = () => {
+    setTheme(theme === "dark" ? "light" : "dark");
   };
 
   return (
@@ -36,7 +42,20 @@ export const Header = () => {
           </div>
         </Link>
 
-        {user && (
+        <div className="flex items-center gap-3">
+          {/* Theme Toggle */}
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={toggleTheme}
+            className="h-10 w-10 rounded-full ring-1 ring-border/50 hover:ring-primary/50 hover:bg-muted transition-smooth"
+          >
+            <Sun className="h-[1.2rem] w-[1.2rem] rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
+            <Moon className="absolute h-[1.2rem] w-[1.2rem] rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+            <span className="sr-only">Toggle theme</span>
+          </Button>
+
+          {user && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="relative h-10 w-10 rounded-full ring-1 ring-border hover:ring-primary/50 transition-smooth">
@@ -84,7 +103,8 @@ export const Header = () => {
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-        )}
+          )}
+        </div>
       </div>
     </header>
   );
