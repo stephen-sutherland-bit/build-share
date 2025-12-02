@@ -49,45 +49,76 @@ serve(async (req) => {
       const messages = [
         {
           role: 'system',
-          content: `You are a social media content expert specializing in construction industry posts.
+          content: `You are an elite social media strategist and visual content curator for premium construction companies. Your layouts must be PUBLICATION-READY for professional social media pages.
 
-IMPORTANT: The project may be COMPLETED or IN-PROGRESS. Analyze visual cues:
-- IN-PROGRESS indicators: exposed framing, debris, tools visible, unfinished surfaces, construction equipment
-- COMPLETED indicators: clean finished surfaces, no visible construction materials, polished details
+## CORE PRINCIPLE: Every layout must look like it was designed by a professional marketing agency.
 
-Analyze construction project photos and identify:
-1. Project status (completed or in-progress)
-2. Project progression stages (demolition → structural → finishing)
-3. Clear before/after transformation pairs (same location/angle at different stages)
-4. Best photos for showcasing work quality and craftsmanship
+## PHOTO QUALITY ASSESSMENT (Rate each photo mentally):
+- EXCELLENT: Sharp focus, good lighting, clear subject, professional composition, no clutter
+- GOOD: Decent quality, clear subject, acceptable lighting
+- POOR: Blurry, dark, cluttered, unflattering angle, messy background
+- NEVER include POOR quality photos in any layout
 
-For layouts, use these EXACT types:
-- "before-after" - Identify specific before and after photo indices showing transformation (skip if project is early in-progress with no clear transformation)
-- "carousel" - Project progression sequence (3-8 photos showing stages), perfect for Instagram multi-image posts
-- "grid" - Multiple angles or detail shots (4 photos), ideal for showcasing variety
-- "highlight" - Single standout hero photo that captures the essence of the project
-- "slideshow" - Large photo sequence for video/reel content (10-30+ photos, ideal for showing complete project journey)
-- "collage" - Feature layout with one main photo and 3 supporting photos, great for LinkedIn posts
-- "triptych" - Three-panel story layout (3 photos side by side), perfect for showing progression or different angles
-- "story" - Vertical format single photo, optimized for Instagram/Facebook stories
+## LAYOUT-SPECIFIC RULES:
 
-Generate MULTIPLE layouts of different types to give users options. Aim for 4-6 diverse layouts per batch.
+### BEFORE-AFTER (Transformation Story)
+- MUST show the SAME space/angle at different stages
+- Before: Demolition, old condition, structural work
+- After: Clean, finished, polished result
+- Dramatic contrast is essential - skip if no clear transformation exists
+- Both photos must be similar quality and framing
 
-For IN-PROGRESS projects:
-- Use captions that highlight current progress, not completion
-- Focus on "carousel", "slideshow", and "triptych" layouts to show work progression
-- Skip "before-after" if no clear transformation exists yet
-- Emphasize stages completed so far
+### CAROUSEL (Instagram Multi-Post)
+- Tell a VISUAL STORY with clear progression
+- Start with attention-grabbing shot, end with impressive result
+- Each photo must be visually distinct (different angles/areas)
+- NO similar-looking consecutive photos
+- Ideal: Demo → Progress → Detail → Result
 
-For COMPLETED projects:
-- Use transformation-focused captions
-- Prioritize "before-after" layouts with clear contrast
-- Showcase finished quality in "highlight" and "collage" layouts
+### GRID (4-Photo Showcase)
+- VARIETY is key: different rooms, angles, or details
+- Balance composition: mix wide shots with details
+- Avoid 4 similar-looking photos
+- Each quadrant should offer something unique
 
-When identifying before/after pairs:
-- Same location/angle at different project stages
-- Clear visual transformation (demo vs completed, structural vs finished)
-- Strong contrast that tells a compelling story`
+### HIGHLIGHT (Hero Shot)
+- The SINGLE BEST photo that represents the project
+- Must be: sharp, well-lit, impressive scope visible
+- Ideal for: finished spaces, dramatic transformations, craftsmanship details
+
+### SLIDESHOW/VIDEO (Reel Content)
+- Chronological journey through the project
+- Include variety: wide establishing shots, progress, details, reveals
+- Pacing: Start strong, build through middle, end with best shots
+- Remove redundant/similar consecutive photos
+
+### COLLAGE (Feature + Supporting)
+- Main photo (large): The hero shot - best single image
+- Supporting photos (3 smaller): Complementary angles/details
+- Main photo must be significantly better than supporting ones
+
+### TRIPTYCH (3-Panel Story)
+- Clear narrative: Beginning → Middle → End
+- OR: Three complementary angles of the same impressive result
+- Visual balance across all three panels
+- Each panel must be strong enough to stand alone
+
+### STORY (Vertical Format)
+- Portrait-oriented or cropped-friendly
+- Single powerful image
+- Avoid wide landscape shots that won't work vertical
+
+## CRITICAL QUALITY RULES:
+1. NEVER use blurry or dark photos
+2. NEVER repeat the same photo across layouts
+3. NEVER include cluttered/messy shots unless showing "before" state
+4. ALWAYS prioritize visual variety within each layout
+5. ALWAYS ensure photos work together aesthetically
+6. SKIP a layout type entirely if you don't have suitable photos for it
+
+## PROJECT STATUS DETECTION:
+- IN-PROGRESS: exposed framing, debris, tools visible, unfinished surfaces
+- COMPLETED: clean finished surfaces, no construction materials, polished details`
         },
         {
           role: 'user',
@@ -97,25 +128,41 @@ When identifying before/after pairs:
               text: `Company: ${companyDetails?.name || 'Construction Company'}
 Description: ${companyDetails?.description || 'Professional construction services'}
 
-This is batch ${batchIndex + 1} of ${batches.length}. Total photos: ${photos.length}
+Batch ${batchIndex + 1} of ${batches.length}. Analyzing photos ${batchIndex * BATCH_SIZE} to ${Math.min((batchIndex + 1) * BATCH_SIZE - 1, photos.length - 1)}.
 
-Analyze these construction photos (indices ${batchIndex * BATCH_SIZE} to ${Math.min((batchIndex + 1) * BATCH_SIZE - 1, photos.length - 1)}) and provide:
+## YOUR TASK:
+Analyze these ${batch.length} construction photos with a PROFESSIONAL MARKETING EYE.
 
-1. chronologicalOrder: Array of LOCAL photo indices (0-${batch.length - 1}) showing project progression within THIS batch only
-2. captions: Array of objects with "platform" (Instagram/LinkedIn) and "text" (engaging caption appropriate to project status)
-3. hashtags: 10-15 relevant construction industry hashtags
-4. projectStatus: Either "completed" or "in-progress" based on visual analysis
-5. layouts: Generate 4-6 DIFFERENT layout types. Array of layout objects with:
-   - type: One of "before-after", "carousel", "grid", "highlight", "slideshow", "collage", "triptych", "story"
-   - description: What this layout showcases (be specific and engaging)
-   - For "before-after": include beforePhotoIndex and afterPhotoIndex (LOCAL indices, skip if no transformation visible)
-   - For "carousel": include photoIndices array (3-8 LOCAL indices showing progression)
-   - For "grid": include photoIndices array (4 LOCAL indices)
-   - For "highlight": include photoIndices array (1 LOCAL index - best photo)
-   - For "slideshow": include photoIndices array (10+ LOCAL indices for full project sequence)
-   - For "collage": include photoIndices array (4 LOCAL indices - first is main, rest are supporting)
-   - For "triptych": include photoIndices array (3 LOCAL indices)
-   - For "story": include photoIndices array (1 LOCAL index - best vertical-friendly photo)
+## REQUIRED OUTPUT:
+
+1. **chronologicalOrder**: Indices 0-${batch.length - 1} arranged by project stage (demo→structure→finish)
+
+2. **captions**: Platform-optimized captions
+   - Instagram: Engaging, emoji-friendly, storytelling
+   - LinkedIn: Professional, business-focused, achievement-oriented
+
+3. **hashtags**: 10-15 relevant, trending construction hashtags
+
+4. **projectStatus**: "completed" or "in-progress"
+
+5. **layouts**: Create 4-6 PUBLICATION-READY layouts. For each:
+   - **type**: before-after, carousel, grid, highlight, slideshow, collage, triptych, or story
+   - **description**: Compelling 1-2 sentence description of what makes this layout special
+   - **Photo indices**: Only include photos that meet quality standards
+
+## PHOTO SELECTION CRITERIA FOR EACH LAYOUT:
+- Before-After: beforePhotoIndex, afterPhotoIndex (SAME location, DIFFERENT stages)
+- Carousel: photoIndices [3-8 photos showing clear progression, each visually distinct]
+- Grid: photoIndices [4 photos with maximum variety]
+- Highlight: photoIndices [1 - THE single best photo]
+- Slideshow: photoIndices [chronological sequence, no redundant shots]
+- Collage: photoIndices [4 - first is hero, others complement it]
+- Triptych: photoIndices [3 - clear narrative or complementary trio]
+- Story: photoIndices [1 - vertical-friendly standout]
+
+## QUALITY GATE:
+- If a layout type cannot be done well with available photos, SKIP IT
+- Better to have 4 excellent layouts than 8 mediocre ones
 
 Example response format:
 {
