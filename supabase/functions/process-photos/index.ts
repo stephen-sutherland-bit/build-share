@@ -49,10 +49,22 @@ serve(async (req) => {
       const messages = [
         {
           role: 'system',
-          content: `You are a social media content expert specializing in construction industry posts. 
-          Analyze the provided construction project photos and create engaging social media content.
-          Consider the chronological order of work, project progression, and highlight transformations.
-          Generate professional captions that showcase the company's expertise.`
+          content: `You are a social media content expert specializing in construction industry posts.
+Analyze construction project photos and identify:
+1. Project progression stages (demolition → structural → finishing)
+2. Clear before/after transformation pairs (same location/angle at different stages)
+3. Best photos for showcasing work quality and craftsmanship
+
+For layouts, ONLY use these EXACT types:
+- "before-after" - Identify specific before and after photo indices showing transformation
+- "carousel" - Project progression sequence (3-5 photos)
+- "grid" - Multiple angles or detail shots (4 photos)
+- "highlight" - Single standout photo
+
+When identifying before/after pairs, look for:
+- Same location/angle at different project stages
+- Clear visual transformation (demo vs completed, structural vs finished)
+- Strong contrast that tells a compelling story`
         },
         {
           role: 'user',
@@ -60,17 +72,47 @@ serve(async (req) => {
             {
               type: 'text',
               text: `Company: ${companyDetails?.name || 'Construction Company'}
-              Description: ${companyDetails?.description || 'Professional construction services'}
-              
-              This is batch ${batchIndex + 1} of ${batches.length}. Total photos: ${photos.length}
-              
-              Please analyze these construction project photos and provide:
-              1. Suggested chronological order for THIS batch (array of indices ${batchIndex * BATCH_SIZE} to ${Math.min((batchIndex + 1) * BATCH_SIZE - 1, photos.length - 1)})
-              2. 2-3 engaging captions for social media posts (Instagram, LinkedIn style)
-              3. 10-15 relevant construction industry hashtags
-              4. Suggestions for layout types (grid, before/after, carousel, etc.)
-              
-              Format your response as JSON with keys: chronologicalOrder (array of photo indices), captions (array), hashtags (array), layouts (array of objects with type and description).`
+Description: ${companyDetails?.description || 'Professional construction services'}
+
+This is batch ${batchIndex + 1} of ${batches.length}. Total photos: ${photos.length}
+
+Analyze these construction photos (indices ${batchIndex * BATCH_SIZE} to ${Math.min((batchIndex + 1) * BATCH_SIZE - 1, photos.length - 1)}) and provide:
+
+1. chronologicalOrder: Array of photo indices showing project progression
+2. captions: Array of objects with "platform" (Instagram/LinkedIn) and "text" (engaging caption)
+3. hashtags: 10-15 relevant construction industry hashtags
+4. layouts: Array of layout objects with:
+   - type: MUST be exactly "before-after", "carousel", "grid", or "highlight"
+   - description: What this layout showcases
+   - For "before-after": include beforePhotoIndex and afterPhotoIndex (must identify actual transformation)
+   - For "carousel": include photoIndices array (3-5 photos showing progression)
+   - For "grid": include photoIndices array (4 photos)
+   - For "highlight": include photoIndices array (1 photo)
+
+Example response format:
+{
+  "chronologicalOrder": [0, 2, 1, 3],
+  "captions": [
+    {"platform": "Instagram", "text": "Transformation complete! 🔨..."},
+    {"platform": "LinkedIn", "text": "Proud to showcase..."}
+  ],
+  "hashtags": ["construction", "renovation"],
+  "layouts": [
+    {
+      "type": "before-after",
+      "description": "Kitchen demolition to completed renovation",
+      "beforePhotoIndex": 0,
+      "afterPhotoIndex": 3
+    },
+    {
+      "type": "carousel",
+      "description": "Full project timeline",
+      "photoIndices": [0, 1, 2, 3]
+    }
+  ]
+}
+
+Return ONLY valid JSON.`
             },
             ...batch.map((photo: any) => ({
               type: 'image_url',

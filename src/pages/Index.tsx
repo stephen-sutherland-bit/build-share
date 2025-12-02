@@ -21,7 +21,14 @@ interface ProcessedContent {
   photos: Array<{ url: string; timestamp?: string }>;
   captions: Array<{ platform?: string; text: string } | string>;
   hashtags: string[];
-  layouts: Array<{ type: string; preview: string }>;
+  layouts: Array<{ 
+    type: string; 
+    description?: string;
+    preview?: string;
+    beforePhotoIndex?: number;
+    afterPhotoIndex?: number;
+    photoIndices?: number[];
+  }>;
 }
 
 const Index = () => {

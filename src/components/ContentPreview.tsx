@@ -8,7 +8,14 @@ interface ProcessedContent {
   photos: Array<{ url: string; timestamp?: string }>;
   captions: Array<{ platform?: string; text: string } | string>;
   hashtags: string[];
-  layouts: Array<{ type: string; preview: string }>;
+  layouts: Array<{ 
+    type: string; 
+    description?: string;
+    preview?: string;
+    beforePhotoIndex?: number;
+    afterPhotoIndex?: number;
+    photoIndices?: number[];
+  }>;
 }
 
 interface ContentPreviewProps {
@@ -78,72 +85,97 @@ export const ContentPreview = ({ content }: ContentPreviewProps) => {
           
           <TabsContent value="layouts" className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {content.layouts.map((layout, idx) => (
-                <div key={idx} className="border border-border rounded-lg p-4 hover:shadow-medium transition-smooth space-y-3">
-                  <div className="space-y-2">
-                    <p className="text-sm font-semibold capitalize">{layout.type} Layout</p>
-                    {layout.preview && (
-                      <p className="text-xs text-muted-foreground">{layout.preview}</p>
+              {content.layouts.map((layout, idx) => {
+                const layoutType = layout.type.toLowerCase();
+                const isBeforeAfter = layoutType.includes('before') || layoutType.includes('after');
+                const isCarousel = layoutType.includes('carousel');
+                const isGrid = layoutType.includes('grid');
+                const isHighlight = layoutType.includes('highlight') || layoutType.includes('single');
+                
+                return (
+                  <div key={idx} className="border border-border rounded-lg p-4 hover:shadow-medium transition-smooth space-y-3">
+                    <div className="space-y-2">
+                      <p className="text-sm font-semibold capitalize">{layout.type} Layout</p>
+                      <p className="text-xs text-muted-foreground">
+                        {layout.description || layout.preview || 'AI-generated layout suggestion'}
+                      </p>
+                    </div>
+                    
+                    {/* Before/After with AI-identified indices */}
+                    {isBeforeAfter && content.photos.length >= 2 && (
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="space-y-1">
+                          <img 
+                            src={content.photos[layout.beforePhotoIndex ?? 0]?.url} 
+                            alt="Before"
+                            className="w-full aspect-square object-cover rounded border border-border"
+                          />
+                          <p className="text-xs text-center text-muted-foreground">Before</p>
+                        </div>
+                        <div className="space-y-1">
+                          <img 
+                            src={content.photos[layout.afterPhotoIndex ?? content.photos.length - 1]?.url} 
+                            alt="After"
+                            className="w-full aspect-square object-cover rounded border border-border"
+                          />
+                          <p className="text-xs text-center text-muted-foreground">After</p>
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* Carousel with AI-suggested indices */}
+                    {isCarousel && !isBeforeAfter && (
+                      <div className="flex gap-2 overflow-x-auto pb-2">
+                        {(layout.photoIndices || content.photos.slice(0, 4).map((_, i) => i)).map((photoIdx) => (
+                          <img 
+                            key={photoIdx}
+                            src={content.photos[photoIdx]?.url} 
+                            alt={`Preview ${photoIdx + 1}`}
+                            className="h-24 w-24 object-cover rounded border border-border flex-shrink-0"
+                          />
+                        ))}
+                      </div>
+                    )}
+                    
+                    {/* Highlight with AI-suggested photo */}
+                    {isHighlight && !isBeforeAfter && !isCarousel && content.photos.length > 0 && (
+                      <img 
+                        src={content.photos[layout.photoIndices?.[0] ?? 0]?.url} 
+                        alt="Highlight"
+                        className="w-full aspect-video object-cover rounded border border-border"
+                      />
+                    )}
+                    
+                    {/* Grid with AI-suggested indices */}
+                    {isGrid && !isBeforeAfter && !isCarousel && !isHighlight && (
+                      <div className="grid grid-cols-2 gap-2">
+                        {(layout.photoIndices || content.photos.slice(0, 4).map((_, i) => i)).map((photoIdx) => (
+                          <img 
+                            key={photoIdx}
+                            src={content.photos[photoIdx]?.url} 
+                            alt={`Grid ${photoIdx + 1}`}
+                            className="w-full aspect-square object-cover rounded border border-border"
+                          />
+                        ))}
+                      </div>
+                    )}
+                    
+                    {/* Fallback for unknown layout types */}
+                    {!isBeforeAfter && !isCarousel && !isGrid && !isHighlight && (
+                      <div className="flex gap-2 overflow-x-auto pb-2">
+                        {(layout.photoIndices || [0, 1, 2]).map((photoIdx) => (
+                          <img 
+                            key={photoIdx}
+                            src={content.photos[photoIdx]?.url} 
+                            alt={`Photo ${photoIdx + 1}`}
+                            className="h-24 w-24 object-cover rounded border border-border flex-shrink-0"
+                          />
+                        ))}
+                      </div>
                     )}
                   </div>
-                  
-                  {/* Layout Preview - Case-insensitive matching */}
-                  {layout.type.toLowerCase().includes('carousel') && (
-                    <div className="flex gap-2 overflow-x-auto pb-2">
-                      {content.photos.slice(0, 4).map((photo, pIdx) => (
-                        <img 
-                          key={pIdx}
-                          src={photo.url} 
-                          alt={`Preview ${pIdx + 1}`}
-                          className="h-24 w-24 object-cover rounded border border-border flex-shrink-0"
-                        />
-                      ))}
-                    </div>
-                  )}
-                  
-                  {(layout.type.toLowerCase().includes('before') && layout.type.toLowerCase().includes('after')) && content.photos.length >= 2 && (
-                    <div className="grid grid-cols-2 gap-2">
-                      <div className="space-y-1">
-                        <img 
-                          src={content.photos[0].url} 
-                          alt="Before"
-                          className="w-full aspect-square object-cover rounded border border-border"
-                        />
-                        <p className="text-xs text-center text-muted-foreground">Before</p>
-                      </div>
-                      <div className="space-y-1">
-                        <img 
-                          src={content.photos[content.photos.length - 1].url} 
-                          alt="After"
-                          className="w-full aspect-square object-cover rounded border border-border"
-                        />
-                        <p className="text-xs text-center text-muted-foreground">After</p>
-                      </div>
-                    </div>
-                  )}
-                  
-                  {(layout.type.toLowerCase().includes('single') || layout.type.toLowerCase().includes('highlight')) && content.photos.length > 0 && (
-                    <img 
-                      src={content.photos[0].url} 
-                      alt="Highlight"
-                      className="w-full aspect-video object-cover rounded border border-border"
-                    />
-                  )}
-                  
-                  {layout.type.toLowerCase().includes('grid') && (
-                    <div className="grid grid-cols-2 gap-2">
-                      {content.photos.slice(0, 4).map((photo, pIdx) => (
-                        <img 
-                          key={pIdx}
-                          src={photo.url} 
-                          alt={`Grid ${pIdx + 1}`}
-                          className="w-full aspect-square object-cover rounded border border-border"
-                        />
-                      ))}
-                    </div>
-                  )}
-                </div>
-              ))}
+                );
+              })}
             </div>
           </TabsContent>
 
