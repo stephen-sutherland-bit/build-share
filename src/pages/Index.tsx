@@ -1,9 +1,13 @@
-import { useState } from "react";
-import { CompanyForm } from "@/components/CompanyForm";
+import { useState, useEffect } from "react";
 import { PhotoUploader } from "@/components/PhotoUploader";
 import { ContentPreview } from "@/components/ContentPreview";
-import { Building2, Sparkles, Zap, Layout } from "lucide-react";
+import { Sparkles, Zap, Layout } from "lucide-react";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { Header } from "@/components/Header";
+import { Button } from "@/components/ui/button";
+import { Link } from "react-router-dom";
 import heroImage from "@/assets/hero-construction.jpg";
 
 interface CompanyDetails {
@@ -21,14 +25,44 @@ interface ProcessedContent {
 }
 
 const Index = () => {
+  const { user } = useAuth();
   const [companyDetails, setCompanyDetails] = useState<CompanyDetails | null>(null);
   const [uploadedPhotos, setUploadedPhotos] = useState<File[]>([]);
   const [processedContent, setProcessedContent] = useState<ProcessedContent | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [loadingCompany, setLoadingCompany] = useState(true);
 
-  const handleCompanySave = (details: CompanyDetails) => {
-    setCompanyDetails(details);
-    toast.success("Company details saved!");
+  useEffect(() => {
+    if (user) {
+      loadCompanyDetails();
+    }
+  }, [user]);
+
+  const loadCompanyDetails = async () => {
+    if (!user) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('companies')
+        .select('*')
+        .eq('user_id', user.id)
+        .single();
+
+      if (error && error.code !== 'PGRST116') {
+        console.error('Error loading company:', error);
+      } else if (data) {
+        setCompanyDetails({
+          name: data.name,
+          description: data.description,
+          website: data.website || undefined,
+          phone: data.phone || undefined,
+        });
+      }
+    } catch (error) {
+      console.error('Error:', error);
+    } finally {
+      setLoadingCompany(false);
+    }
   };
 
   const handlePhotosUpload = (files: File[]) => {
@@ -38,7 +72,7 @@ const Index = () => {
 
   const handleProcess = async () => {
     if (!companyDetails) {
-      toast.error("Please add company details first");
+      toast.error("Please add company details in Settings first");
       return;
     }
     if (uploadedPhotos.length === 0) {
@@ -112,20 +146,7 @@ const Index = () => {
 
   return (
     <div className="min-h-screen gradient-hero">
-      {/* Header */}
-      <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-50">
-        <div className="container mx-auto px-4 py-4 flex items-center gap-3">
-          <div className="h-10 w-10 rounded-lg gradient-primary flex items-center justify-center">
-            <Building2 className="h-6 w-6 text-primary-foreground" />
-          </div>
-          <div>
-            <h1 className="text-xl font-display font-bold text-foreground">
-              BuildPost AI
-            </h1>
-            <p className="text-sm text-muted-foreground">Construction Content Creator</p>
-          </div>
-        </div>
-      </header>
+      <Header />
 
       {/* Hero Section */}
       <section className="relative overflow-hidden border-b border-border">
@@ -175,28 +196,39 @@ const Index = () => {
 
       {/* Main Content */}
       <main className="container mx-auto px-4 py-8 space-y-8">
-        {/* Company Details Section */}
-        <section className="animate-fade-in">
-          <CompanyForm onSave={handleCompanySave} />
-        </section>
+        {loadingCompany ? (
+          <div className="text-center py-8">
+            <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full mx-auto mb-4" />
+            <p className="text-muted-foreground">Loading...</p>
+          </div>
+        ) : !companyDetails ? (
+          <div className="text-center py-8 space-y-4">
+            <p className="text-lg text-muted-foreground">
+              Please set up your company details first to start creating content.
+            </p>
+            <Button asChild className="gradient-primary">
+              <Link to="/settings">Go to Settings</Link>
+            </Button>
+          </div>
+        ) : (
+          <>
+            {/* Photo Upload Section */}
+            <section className="animate-slide-in">
+              <PhotoUploader 
+                onUpload={handlePhotosUpload}
+                onProcess={handleProcess}
+                isProcessing={isProcessing}
+                photoCount={uploadedPhotos.length}
+              />
+            </section>
 
-        {/* Photo Upload Section */}
-        {companyDetails && (
-          <section className="animate-slide-in">
-            <PhotoUploader 
-              onUpload={handlePhotosUpload}
-              onProcess={handleProcess}
-              isProcessing={isProcessing}
-              photoCount={uploadedPhotos.length}
-            />
-          </section>
-        )}
-
-        {/* Content Preview Section */}
-        {processedContent && (
-          <section className="animate-fade-in">
-            <ContentPreview content={processedContent} />
-          </section>
+            {/* Content Preview Section */}
+            {processedContent && (
+              <section className="animate-fade-in">
+                <ContentPreview content={processedContent} />
+              </section>
+            )}
+          </>
         )}
       </main>
 
