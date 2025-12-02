@@ -231,68 +231,69 @@ const Index = () => {
   };
 
   return (
-    <div className="min-h-screen gradient-hero">
+    <div className="min-h-screen bg-background">
       <Header />
 
       {/* Hero Section */}
-      <section className="relative overflow-hidden border-b border-border">
+      <section className="relative overflow-hidden">
         <div 
-          className="absolute inset-0 opacity-20"
+          className="absolute inset-0 opacity-10"
           style={{
             backgroundImage: `url(${heroImage})`,
             backgroundSize: 'cover',
             backgroundPosition: 'center'
           }}
         />
-        <div className="absolute inset-0 gradient-hero opacity-90" />
-        <div className="relative container mx-auto px-4 py-16 md:py-24">
-          <div className="max-w-3xl mx-auto text-center space-y-6 animate-fade-in">
-            <h2 className="text-4xl md:text-6xl font-display font-bold text-foreground">
+        <div className="absolute inset-0 bg-gradient-to-b from-background via-background/95 to-background" />
+        <div className="relative container mx-auto px-4 py-20 md:py-28">
+          <div className="max-w-3xl mx-auto text-center space-y-8 animate-fade-in">
+            <h1 className="text-4xl sm:text-5xl md:text-6xl font-display font-bold text-foreground tracking-tighter leading-[1.1]">
               Transform Job Photos into 
-              <span className="block gradient-text-primary mt-2">
+              <span className="block gradient-text-primary mt-3">
                 Social Media Gold
               </span>
-            </h2>
-            <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto">
-              Upload your construction project photos and let AI create engaging social media content with captions, hashtags, and professional layouts—ready to post in minutes.
+            </h1>
+            <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto leading-relaxed">
+              Upload your construction project photos and let AI create engaging social media content with captions, hashtags, and professional layouts.
             </p>
-            <div className="flex flex-wrap justify-center gap-6 pt-4">
-              <div className="flex items-center gap-2">
-                <div className="h-10 w-10 rounded-full bg-accent/10 flex items-center justify-center">
+            <div className="flex flex-wrap justify-center gap-8 pt-6">
+              <div className="flex items-center gap-3 group">
+                <div className="h-11 w-11 rounded-xl bg-accent/10 flex items-center justify-center transition-spring group-hover:scale-105 group-hover:bg-accent/15">
                   <Sparkles className="h-5 w-5 text-accent" />
                 </div>
-                <span className="text-sm font-medium">AI-Powered</span>
+                <span className="text-sm font-semibold tracking-tight">AI-Powered</span>
               </div>
-              <div className="flex items-center gap-2">
-                <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+              <div className="flex items-center gap-3 group">
+                <div className="h-11 w-11 rounded-xl bg-primary/10 flex items-center justify-center transition-spring group-hover:scale-105 group-hover:bg-primary/15">
                   <Zap className="h-5 w-5 text-primary" />
                 </div>
-                <span className="text-sm font-medium">Instant Results</span>
+                <span className="text-sm font-semibold tracking-tight">Instant Results</span>
               </div>
-              <div className="flex items-center gap-2">
-                <div className="h-10 w-10 rounded-full bg-accent/10 flex items-center justify-center">
+              <div className="flex items-center gap-3 group">
+                <div className="h-11 w-11 rounded-xl bg-accent/10 flex items-center justify-center transition-spring group-hover:scale-105 group-hover:bg-accent/15">
                   <Layout className="h-5 w-5 text-accent" />
                 </div>
-                <span className="text-sm font-medium">Pro Layouts</span>
+                <span className="text-sm font-semibold tracking-tight">Pro Layouts</span>
               </div>
             </div>
           </div>
         </div>
+        <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-border to-transparent" />
       </section>
 
       {/* Main Content */}
-      <main className="container mx-auto px-4 py-8 space-y-8">
+      <main className="container mx-auto px-4 py-12 space-y-10">
         {loadingCompany ? (
-          <div className="text-center py-8">
-            <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full mx-auto mb-4" />
-            <p className="text-muted-foreground">Loading...</p>
+          <div className="text-center py-16">
+            <div className="animate-spin h-8 w-8 border-2 border-primary border-t-transparent rounded-full mx-auto mb-4" />
+            <p className="text-muted-foreground text-sm">Loading...</p>
           </div>
         ) : !companyDetails ? (
-          <div className="text-center py-8 space-y-4">
+          <div className="text-center py-16 space-y-5">
             <p className="text-lg text-muted-foreground">
-              Please set up your company details first to start creating content.
+              Set up your company details to start creating content.
             </p>
-            <Button asChild className="gradient-primary">
+            <Button asChild className="gradient-primary shadow-soft hover:shadow-medium transition-smooth">
               <Link to="/settings">Go to Settings</Link>
             </Button>
           </div>
@@ -309,7 +310,7 @@ const Index = () => {
             </section>
 
             {/* Photo Upload Section */}
-            <section className="animate-slide-in">
+            <section className="animate-fade-in" style={{ animationDelay: '100ms' }}>
               <PhotoUploader 
                 onUpload={handlePhotosUpload}
                 onProcess={handleProcess}
@@ -321,7 +322,7 @@ const Index = () => {
 
             {/* Content Preview Section */}
             {processedContent && (
-              <section className="animate-fade-in">
+              <section className="animate-fade-in" style={{ animationDelay: '200ms' }}>
                 <ContentPreview 
                   content={processedContent}
                   onSave={handleSaveClick}
@@ -344,9 +345,11 @@ const Index = () => {
       />
 
       {/* Footer */}
-      <footer className="border-t border-border mt-16 py-8">
-        <div className="container mx-auto px-4 text-center text-sm text-muted-foreground">
-          <p>Powered by BuildPost AI • Transform your construction content instantly</p>
+      <footer className="mt-20 py-10 border-t border-border/50">
+        <div className="container mx-auto px-4 text-center">
+          <p className="text-sm text-muted-foreground tracking-tight">
+            Powered by <span className="font-semibold text-foreground">BuildPost AI</span> • Transform your construction content instantly
+          </p>
         </div>
       </footer>
     </div>
