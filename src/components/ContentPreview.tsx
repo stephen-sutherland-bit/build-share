@@ -6,13 +6,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Share2, Download, Copy, Instagram, Linkedin, Facebook, Twitter, ChevronDown, RotateCcw, Save, CheckCircle } from "lucide-react";
+import { Share2, Download, Copy, Instagram, Linkedin, Facebook, Twitter, ChevronDown, RotateCcw, Save, CheckCircle, LayoutGrid, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import JSZip from "jszip";
 import { saveAs } from "file-saver";
 import { PhotoLightbox } from "./PhotoLightbox";
 import { LayoutPreviewModal } from "./LayoutPreviewModal";
 import { SortablePhoto } from "./SortablePhoto";
+import { LayoutCard } from "./LayoutCard";
 
 interface ProcessedContent {
   photos: Array<{ url: string; timestamp?: string }>;
@@ -346,140 +347,56 @@ export const ContentPreview = ({ content, onSave, currentProjectName, isSaved }:
               </p>
             </TabsContent>
             
-            <TabsContent value="layouts" className="space-y-4 mt-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {editedLayouts.map((layout, idx) => {
-                  const layoutType = layout.type.toLowerCase();
-                  const isBeforeAfter = layoutType.includes('before') || layoutType.includes('after');
-                  const isCarousel = layoutType.includes('carousel');
-                  const isGrid = layoutType.includes('grid');
-                  const isHighlight = layoutType.includes('highlight') || layoutType.includes('single');
-                  const isSlideshow = layoutType.includes('slideshow');
-                  
-                  return (
-                    <motion.div 
-                      key={idx} 
-                      className="border border-border/50 rounded-xl p-5 hover:shadow-medium hover:border-primary/30 bg-muted/20 transition-all duration-200 space-y-4 cursor-pointer group"
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: idx * 0.1 }}
-                      whileHover={{ scale: 1.01 }}
-                      onClick={() => {
-                        setSelectedLayout(layout);
-                        setSelectedLayoutIndex(idx);
-                      }}
-                    >
-                      <div className="space-y-1.5">
-                        <div className="flex items-center justify-between">
-                          <p className="text-sm font-semibold capitalize tracking-tight">{layout.type} Layout</p>
-                          <span className="text-xs text-primary font-medium opacity-0 group-hover:opacity-100 transition-opacity">
-                            Preview →
-                          </span>
-                        </div>
-                        <p className="text-xs text-muted-foreground leading-relaxed">
-                          {layout.description || layout.preview || 'AI-generated layout suggestion'}
-                        </p>
-                      </div>
-                      
-                      {/* Before/After with AI-identified indices */}
-                      {isBeforeAfter && content.photos.length >= 2 && (
-                        <div className="grid grid-cols-2 gap-2">
-                          <div className="space-y-1">
-                            <img 
-                              src={content.photos[layout.beforePhotoIndex ?? 0]?.url} 
-                              alt="Before"
-                              className="w-full aspect-square object-cover rounded border border-border"
-                            />
-                            <p className="text-xs text-center text-muted-foreground">Before</p>
-                          </div>
-                          <div className="space-y-1">
-                            <img 
-                              src={content.photos[layout.afterPhotoIndex ?? content.photos.length - 1]?.url} 
-                              alt="After"
-                              className="w-full aspect-square object-cover rounded border border-border"
-                            />
-                            <p className="text-xs text-center text-muted-foreground">After</p>
-                          </div>
-                        </div>
-                      )}
-                      
-                      {/* Slideshow with all photos for video/reel */}
-                      {isSlideshow && !isBeforeAfter && (
-                        <div className="space-y-2">
-                          <div className="flex gap-1 overflow-x-auto pb-2">
-                            {(layout.photoIndices || content.photos.map((_, i) => i)).slice(0, 12).map((photoIdx) => (
-                              <img 
-                                key={photoIdx}
-                                src={content.photos[photoIdx]?.url} 
-                                alt={`Slideshow ${photoIdx + 1}`}
-                                className="h-16 w-16 object-cover rounded flex-shrink-0 border border-border"
-                              />
-                            ))}
-                            {(layout.photoIndices?.length || content.photos.length) > 12 && (
-                              <div className="h-16 w-16 flex items-center justify-center bg-muted rounded flex-shrink-0 border border-border">
-                                <span className="text-xs font-medium">+{(layout.photoIndices?.length || content.photos.length) - 12}</span>
-                              </div>
-                            )}
-                          </div>
-                          <p className="text-xs text-primary font-medium flex items-center gap-1">
-                            📹 Video/Reel: {layout.photoIndices?.length || content.photos.length} photos in sequence
-                          </p>
-                        </div>
-                      )}
-                      
-                      {/* Carousel with AI-suggested indices */}
-                      {isCarousel && !isBeforeAfter && !isSlideshow && (
-                        <div className="flex gap-2 overflow-x-auto pb-2">
-                          {(layout.photoIndices || content.photos.slice(0, 4).map((_, i) => i)).map((photoIdx) => (
-                            <img 
-                              key={photoIdx}
-                              src={content.photos[photoIdx]?.url} 
-                              alt={`Preview ${photoIdx + 1}`}
-                              className="h-24 w-24 object-cover rounded border border-border flex-shrink-0"
-                            />
-                          ))}
-                        </div>
-                      )}
-                      
-                      {/* Highlight with AI-suggested photo */}
-                      {isHighlight && !isBeforeAfter && !isCarousel && !isSlideshow && content.photos.length > 0 && (
-                        <img 
-                          src={content.photos[layout.photoIndices?.[0] ?? 0]?.url} 
-                          alt="Highlight"
-                          className="w-full aspect-video object-cover rounded border border-border"
-                        />
-                      )}
-                      
-                      {/* Grid with AI-suggested indices */}
-                      {isGrid && !isBeforeAfter && !isCarousel && !isHighlight && !isSlideshow && (
-                        <div className="grid grid-cols-2 gap-2">
-                          {(layout.photoIndices || content.photos.slice(0, 4).map((_, i) => i)).map((photoIdx) => (
-                            <img 
-                              key={photoIdx}
-                              src={content.photos[photoIdx]?.url} 
-                              alt={`Grid ${photoIdx + 1}`}
-                              className="w-full aspect-square object-cover rounded border border-border"
-                            />
-                          ))}
-                        </div>
-                      )}
-                      
-                      {/* Fallback for unknown layout types */}
-                      {!isBeforeAfter && !isCarousel && !isGrid && !isHighlight && !isSlideshow && (
-                        <div className="flex gap-2 overflow-x-auto pb-2">
-                          {(layout.photoIndices || [0, 1, 2]).map((photoIdx) => (
-                            <img 
-                              key={photoIdx}
-                              src={content.photos[photoIdx]?.url} 
-                              alt={`Photo ${photoIdx + 1}`}
-                              className="h-24 w-24 object-cover rounded border border-border flex-shrink-0"
-                            />
-                          ))}
-                        </div>
-                      )}
-                    </motion.div>
-                  );
-                })}
+            <TabsContent value="layouts" className="space-y-6 mt-6">
+              {/* Header */}
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg font-semibold">Layout Options</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Click any layout to preview, edit photos, or export
+                  </p>
+                </div>
+                <div className="text-xs text-muted-foreground bg-muted/50 px-3 py-1.5 rounded-full">
+                  {editedLayouts.length} layouts available
+                </div>
+              </div>
+
+              {/* Layout Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {editedLayouts.map((layout, idx) => (
+                  <LayoutCard
+                    key={idx}
+                    layout={layout}
+                    photos={content.photos}
+                    index={idx}
+                    onClick={() => {
+                      setSelectedLayout(layout);
+                      setSelectedLayoutIndex(idx);
+                    }}
+                  />
+                ))}
+              </div>
+
+              {/* Empty State */}
+              {editedLayouts.length === 0 && (
+                <div className="text-center py-12 text-muted-foreground">
+                  <LayoutGrid className="h-12 w-12 mx-auto mb-4 opacity-30" />
+                  <p className="font-medium">No layouts available</p>
+                  <p className="text-sm">Upload photos to generate AI layout suggestions</p>
+                </div>
+              )}
+
+              {/* Tip */}
+              <div className="flex items-center gap-3 p-4 bg-primary/5 border border-primary/10 rounded-xl">
+                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                  <Sparkles className="h-5 w-5 text-primary" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium">Pro tip</p>
+                  <p className="text-xs text-muted-foreground">
+                    You can add or remove photos from any layout. Click a layout to open the editor.
+                  </p>
+                </div>
               </div>
             </TabsContent>
 
