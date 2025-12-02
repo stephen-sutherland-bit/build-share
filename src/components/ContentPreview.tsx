@@ -1,15 +1,18 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from "@dnd-kit/core";
+import { arrayMove, SortableContext, sortableKeyboardCoordinates, rectSortingStrategy } from "@dnd-kit/sortable";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Share2, Download, Copy, Instagram, Linkedin, Facebook, Twitter, ChevronDown } from "lucide-react";
+import { Share2, Download, Copy, Instagram, Linkedin, Facebook, Twitter, ChevronDown, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 import JSZip from "jszip";
 import { saveAs } from "file-saver";
 import { PhotoLightbox } from "./PhotoLightbox";
 import { LayoutPreviewModal } from "./LayoutPreviewModal";
+import { SortablePhoto } from "./SortablePhoto";
 
 interface ProcessedContent {
   photos: Array<{ url: string; timestamp?: string }>;
@@ -34,6 +37,48 @@ export const ContentPreview = ({ content }: ContentPreviewProps) => {
   const [lightboxIndex, setLightboxIndex] = useState(0);
   const [selectedLayout, setSelectedLayout] = useState<typeof content.layouts[0] | null>(null);
   const [isExporting, setIsExporting] = useState(false);
+  
+  // Track reordered photos with their original indices
+  const [orderedPhotos, setOrderedPhotos] = useState(() => 
+    content.photos.map((photo, idx) => ({ ...photo, id: `photo-${idx}`, originalIndex: idx }))
+  );
+
+  // Update when content changes
+  useEffect(() => {
+    setOrderedPhotos(content.photos.map((photo, idx) => ({ ...photo, id: `photo-${idx}`, originalIndex: idx })));
+  }, [content.photos]);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    
+    if (over && active.id !== over.id) {
+      setOrderedPhotos((items) => {
+        const oldIndex = items.findIndex((item) => item.id === active.id);
+        const newIndex = items.findIndex((item) => item.id === over.id);
+        const newOrder = arrayMove(items, oldIndex, newIndex);
+        toast.success(`Moved photo from position ${oldIndex + 1} to ${newIndex + 1}`);
+        return newOrder;
+      });
+    }
+  };
+
+  const resetPhotoOrder = () => {
+    setOrderedPhotos(content.photos.map((photo, idx) => ({ ...photo, id: `photo-${idx}`, originalIndex: idx })));
+    toast.success("Photo order reset to AI-suggested order");
+  };
+
+  const hasReorderedPhotos = orderedPhotos.some((photo, idx) => photo.originalIndex !== idx);
 
   const handleCopy = (text: string) => {
     navigator.clipboard.writeText(text);
@@ -59,9 +104,9 @@ export const ContentPreview = ({ content }: ContentPreviewProps) => {
       const zip = new JSZip();
       const photosFolder = zip.folder("photos");
       
-      // Add all photos
-      for (let i = 0; i < content.photos.length; i++) {
-        const response = await fetch(content.photos[i].url);
+      // Add all photos in user's reordered sequence
+      for (let i = 0; i < orderedPhotos.length; i++) {
+        const response = await fetch(orderedPhotos[i].url);
         const blob = await response.blob();
         photosFolder?.file(`${String(i + 1).padStart(2, '0')}_photo.jpg`, blob);
       }
@@ -86,7 +131,7 @@ export const ContentPreview = ({ content }: ContentPreviewProps) => {
       });
       
       saveAs(zipBlob, `construction-content-${new Date().toISOString().split('T')[0]}.zip`);
-      toast.success(`Exported ${content.photos.length} photos + captions + hashtags!`, { id: toastId });
+      toast.success(`Exported ${orderedPhotos.length} photos + captions + hashtags!`, { id: toastId });
     } catch (error) {
       toast.error("Export failed. Please try again.", { id: toastId });
     } finally {
@@ -193,47 +238,45 @@ export const ContentPreview = ({ content }: ContentPreviewProps) => {
             </TabsList>
             
             <TabsContent value="photos" className="space-y-4">
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                {content.photos.map((photo, idx) => (
-                  <motion.div 
-                    key={idx} 
-                    className="relative group overflow-hidden rounded-lg border border-border hover:shadow-medium transition-all cursor-pointer"
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: idx * 0.05 }}
-                    whileHover={{ scale: 1.02 }}
-                    onClick={() => {
-                      setLightboxIndex(idx);
-                      setLightboxOpen(true);
-                    }}
-                  >
-                    <img 
-                      src={photo.url} 
-                      alt={`Construction photo ${idx + 1}`}
-                      className="w-full aspect-square object-cover"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-background/90 via-background/20 to-transparent opacity-0 group-hover:opacity-100 transition-all flex flex-col items-center justify-end p-3">
-                      <span className="absolute top-2 left-2 bg-primary text-primary-foreground text-xs font-bold px-2 py-1 rounded">
-                        #{idx + 1}
-                      </span>
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        className="w-full"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          downloadPhoto(photo.url, idx);
+              {hasReorderedPhotos && (
+                <div className="flex items-center justify-between p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg">
+                  <p className="text-sm text-amber-600 dark:text-amber-400">
+                    You've reordered the photos. The new order will be used for exports.
+                  </p>
+                  <Button variant="outline" size="sm" onClick={resetPhotoOrder}>
+                    <RotateCcw className="mr-2 h-3 w-3" />
+                    Reset Order
+                  </Button>
+                </div>
+              )}
+              
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragEnd={handleDragEnd}
+              >
+                <SortableContext items={orderedPhotos.map(p => p.id)} strategy={rectSortingStrategy}>
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                    {orderedPhotos.map((photo, idx) => (
+                      <SortablePhoto
+                        key={photo.id}
+                        id={photo.id}
+                        photo={photo}
+                        index={idx}
+                        originalIndex={photo.originalIndex}
+                        onDownload={downloadPhoto}
+                        onClick={() => {
+                          setLightboxIndex(idx);
+                          setLightboxOpen(true);
                         }}
-                      >
-                        <Download className="mr-2 h-3 w-3" />
-                        Download
-                      </Button>
-                    </div>
-                  </motion.div>
-                ))}
-              </div>
+                      />
+                    ))}
+                  </div>
+                </SortableContext>
+              </DndContext>
+              
               <p className="text-sm text-muted-foreground text-center">
-                {content.photos.length} photos organized in chronological order • Click to preview, hover to download
+                {orderedPhotos.length} photos • Drag to reorder • Click to preview • Hover to download
               </p>
             </TabsContent>
             
@@ -445,7 +488,7 @@ export const ContentPreview = ({ content }: ContentPreviewProps) => {
       <AnimatePresence>
         {lightboxOpen && (
           <PhotoLightbox
-            photos={content.photos}
+            photos={orderedPhotos}
             initialIndex={lightboxIndex}
             onClose={() => setLightboxOpen(false)}
             onDownload={downloadPhoto}
@@ -459,7 +502,7 @@ export const ContentPreview = ({ content }: ContentPreviewProps) => {
           isOpen={!!selectedLayout}
           onClose={() => setSelectedLayout(null)}
           layout={selectedLayout}
-          photos={content.photos}
+          photos={orderedPhotos}
         />
       )}
     </>
