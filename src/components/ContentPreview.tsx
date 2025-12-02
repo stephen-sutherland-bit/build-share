@@ -48,19 +48,100 @@ export const ContentPreview = ({ content }: ContentPreviewProps) => {
         </div>
       </CardHeader>
       <CardContent>
-        <Tabs defaultValue="layouts" className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
+        <Tabs defaultValue="photos" className="w-full">
+          <TabsList className="grid w-full grid-cols-4">
+            <TabsTrigger value="photos">Photos</TabsTrigger>
             <TabsTrigger value="layouts">Layouts</TabsTrigger>
             <TabsTrigger value="captions">Captions</TabsTrigger>
             <TabsTrigger value="hashtags">Hashtags</TabsTrigger>
           </TabsList>
           
+          <TabsContent value="photos" className="space-y-4">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              {content.photos.map((photo, idx) => (
+                <div key={idx} className="relative group overflow-hidden rounded-lg border border-border hover:shadow-medium transition-smooth">
+                  <img 
+                    src={photo.url} 
+                    alt={`Construction photo ${idx + 1}`}
+                    className="w-full aspect-square object-cover"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-background/80 to-transparent opacity-0 group-hover:opacity-100 transition-smooth flex items-end p-3">
+                    <p className="text-xs font-medium text-foreground">Photo {idx + 1}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <p className="text-sm text-muted-foreground text-center">
+              {content.photos.length} photos organized in chronological order by AI
+            </p>
+          </TabsContent>
+          
           <TabsContent value="layouts" className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {content.layouts.map((layout, idx) => (
-                <div key={idx} className="border border-border rounded-lg p-4 hover:shadow-medium transition-smooth">
-                  <div className="aspect-square bg-muted rounded-lg mb-3" />
-                  <p className="text-sm font-medium capitalize">{layout.type} Layout</p>
+                <div key={idx} className="border border-border rounded-lg p-4 hover:shadow-medium transition-smooth space-y-3">
+                  <div className="space-y-2">
+                    <p className="text-sm font-semibold capitalize">{layout.type} Layout</p>
+                    {layout.preview && (
+                      <p className="text-xs text-muted-foreground">{layout.preview}</p>
+                    )}
+                  </div>
+                  
+                  {/* Layout Preview */}
+                  {layout.type === 'carousel' && (
+                    <div className="flex gap-2 overflow-x-auto pb-2">
+                      {content.photos.slice(0, 4).map((photo, pIdx) => (
+                        <img 
+                          key={pIdx}
+                          src={photo.url} 
+                          alt={`Preview ${pIdx + 1}`}
+                          className="h-24 w-24 object-cover rounded border border-border flex-shrink-0"
+                        />
+                      ))}
+                    </div>
+                  )}
+                  
+                  {layout.type === 'before-after' && content.photos.length >= 2 && (
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="space-y-1">
+                        <img 
+                          src={content.photos[0].url} 
+                          alt="Before"
+                          className="w-full aspect-square object-cover rounded border border-border"
+                        />
+                        <p className="text-xs text-center text-muted-foreground">Before</p>
+                      </div>
+                      <div className="space-y-1">
+                        <img 
+                          src={content.photos[content.photos.length - 1].url} 
+                          alt="After"
+                          className="w-full aspect-square object-cover rounded border border-border"
+                        />
+                        <p className="text-xs text-center text-muted-foreground">After</p>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {layout.type === 'single-highlight' && content.photos.length > 0 && (
+                    <img 
+                      src={content.photos[0].url} 
+                      alt="Highlight"
+                      className="w-full aspect-video object-cover rounded border border-border"
+                    />
+                  )}
+                  
+                  {layout.type === 'grid' && (
+                    <div className="grid grid-cols-2 gap-2">
+                      {content.photos.slice(0, 4).map((photo, pIdx) => (
+                        <img 
+                          key={pIdx}
+                          src={photo.url} 
+                          alt={`Grid ${pIdx + 1}`}
+                          className="w-full aspect-square object-cover rounded border border-border"
+                        />
+                      ))}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
