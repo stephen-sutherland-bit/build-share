@@ -91,6 +91,7 @@ export const ContentPreview = ({ content }: ContentPreviewProps) => {
                 const isCarousel = layoutType.includes('carousel');
                 const isGrid = layoutType.includes('grid');
                 const isHighlight = layoutType.includes('highlight') || layoutType.includes('single');
+                const isSlideshow = layoutType.includes('slideshow');
                 
                 return (
                   <div key={idx} className="border border-border rounded-lg p-4 hover:shadow-medium transition-smooth space-y-3">
@@ -123,8 +124,32 @@ export const ContentPreview = ({ content }: ContentPreviewProps) => {
                       </div>
                     )}
                     
+                    {/* Slideshow with all photos for video/reel */}
+                    {isSlideshow && !isBeforeAfter && (
+                      <div className="space-y-2">
+                        <div className="flex gap-1 overflow-x-auto pb-2">
+                          {(layout.photoIndices || content.photos.map((_, i) => i)).slice(0, 12).map((photoIdx) => (
+                            <img 
+                              key={photoIdx}
+                              src={content.photos[photoIdx]?.url} 
+                              alt={`Slideshow ${photoIdx + 1}`}
+                              className="h-16 w-16 object-cover rounded flex-shrink-0 border border-border"
+                            />
+                          ))}
+                          {(layout.photoIndices?.length || content.photos.length) > 12 && (
+                            <div className="h-16 w-16 flex items-center justify-center bg-muted rounded flex-shrink-0 border border-border">
+                              <span className="text-xs font-medium">+{(layout.photoIndices?.length || content.photos.length) - 12}</span>
+                            </div>
+                          )}
+                        </div>
+                        <p className="text-xs text-primary font-medium flex items-center gap-1">
+                          📹 Video/Reel: {layout.photoIndices?.length || content.photos.length} photos in sequence
+                        </p>
+                      </div>
+                    )}
+                    
                     {/* Carousel with AI-suggested indices */}
-                    {isCarousel && !isBeforeAfter && (
+                    {isCarousel && !isBeforeAfter && !isSlideshow && (
                       <div className="flex gap-2 overflow-x-auto pb-2">
                         {(layout.photoIndices || content.photos.slice(0, 4).map((_, i) => i)).map((photoIdx) => (
                           <img 
@@ -138,7 +163,7 @@ export const ContentPreview = ({ content }: ContentPreviewProps) => {
                     )}
                     
                     {/* Highlight with AI-suggested photo */}
-                    {isHighlight && !isBeforeAfter && !isCarousel && content.photos.length > 0 && (
+                    {isHighlight && !isBeforeAfter && !isCarousel && !isSlideshow && content.photos.length > 0 && (
                       <img 
                         src={content.photos[layout.photoIndices?.[0] ?? 0]?.url} 
                         alt="Highlight"
@@ -147,7 +172,7 @@ export const ContentPreview = ({ content }: ContentPreviewProps) => {
                     )}
                     
                     {/* Grid with AI-suggested indices */}
-                    {isGrid && !isBeforeAfter && !isCarousel && !isHighlight && (
+                    {isGrid && !isBeforeAfter && !isCarousel && !isHighlight && !isSlideshow && (
                       <div className="grid grid-cols-2 gap-2">
                         {(layout.photoIndices || content.photos.slice(0, 4).map((_, i) => i)).map((photoIdx) => (
                           <img 
@@ -161,7 +186,7 @@ export const ContentPreview = ({ content }: ContentPreviewProps) => {
                     )}
                     
                     {/* Fallback for unknown layout types */}
-                    {!isBeforeAfter && !isCarousel && !isGrid && !isHighlight && (
+                    {!isBeforeAfter && !isCarousel && !isGrid && !isHighlight && !isSlideshow && (
                       <div className="flex gap-2 overflow-x-auto pb-2">
                         {(layout.photoIndices || [0, 1, 2]).map((photoIdx) => (
                           <img 

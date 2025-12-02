@@ -50,18 +50,36 @@ serve(async (req) => {
         {
           role: 'system',
           content: `You are a social media content expert specializing in construction industry posts.
+
+IMPORTANT: The project may be COMPLETED or IN-PROGRESS. Analyze visual cues:
+- IN-PROGRESS indicators: exposed framing, debris, tools visible, unfinished surfaces, construction equipment
+- COMPLETED indicators: clean finished surfaces, no visible construction materials, polished details
+
 Analyze construction project photos and identify:
-1. Project progression stages (demolition → structural → finishing)
-2. Clear before/after transformation pairs (same location/angle at different stages)
-3. Best photos for showcasing work quality and craftsmanship
+1. Project status (completed or in-progress)
+2. Project progression stages (demolition → structural → finishing)
+3. Clear before/after transformation pairs (same location/angle at different stages)
+4. Best photos for showcasing work quality and craftsmanship
 
 For layouts, ONLY use these EXACT types:
-- "before-after" - Identify specific before and after photo indices showing transformation
-- "carousel" - Project progression sequence (3-5 photos)
+- "before-after" - Identify specific before and after photo indices showing transformation (skip if project is early in-progress with no clear transformation)
+- "carousel" - Project progression sequence (3-5 photos showing stages)
 - "grid" - Multiple angles or detail shots (4 photos)
 - "highlight" - Single standout photo
+- "slideshow" - Large photo sequence for video/reel content (10-30+ photos, ideal for showing complete project journey)
 
-When identifying before/after pairs, look for:
+For IN-PROGRESS projects:
+- Use captions that highlight current progress, not completion
+- Focus on "carousel" and "slideshow" layouts to show work progression
+- Skip "before-after" if no clear transformation exists yet
+- Emphasize stages completed so far
+
+For COMPLETED projects:
+- Use transformation-focused captions
+- Prioritize "before-after" layouts with clear contrast
+- Showcase finished quality in "highlight" layouts
+
+When identifying before/after pairs:
 - Same location/angle at different project stages
 - Clear visual transformation (demo vs completed, structural vs finished)
 - Strong contrast that tells a compelling story`
@@ -78,20 +96,23 @@ This is batch ${batchIndex + 1} of ${batches.length}. Total photos: ${photos.len
 
 Analyze these construction photos (indices ${batchIndex * BATCH_SIZE} to ${Math.min((batchIndex + 1) * BATCH_SIZE - 1, photos.length - 1)}) and provide:
 
-1. chronologicalOrder: Array of photo indices showing project progression
-2. captions: Array of objects with "platform" (Instagram/LinkedIn) and "text" (engaging caption)
+1. chronologicalOrder: Array of LOCAL photo indices (0-${batch.length - 1}) showing project progression within THIS batch only
+2. captions: Array of objects with "platform" (Instagram/LinkedIn) and "text" (engaging caption appropriate to project status)
 3. hashtags: 10-15 relevant construction industry hashtags
-4. layouts: Array of layout objects with:
-   - type: MUST be exactly "before-after", "carousel", "grid", or "highlight"
+4. projectStatus: Either "completed" or "in-progress" based on visual analysis
+5. layouts: Array of layout objects with:
+   - type: MUST be exactly "before-after", "carousel", "grid", "highlight", or "slideshow"
    - description: What this layout showcases
-   - For "before-after": include beforePhotoIndex and afterPhotoIndex (must identify actual transformation)
-   - For "carousel": include photoIndices array (3-5 photos showing progression)
-   - For "grid": include photoIndices array (4 photos)
-   - For "highlight": include photoIndices array (1 photo)
+   - For "before-after": include beforePhotoIndex and afterPhotoIndex (LOCAL indices, skip if no transformation visible)
+   - For "carousel": include photoIndices array (3-5 LOCAL indices showing progression)
+   - For "grid": include photoIndices array (4 LOCAL indices)
+   - For "highlight": include photoIndices array (1 LOCAL index)
+   - For "slideshow": include photoIndices array (10+ LOCAL indices for full project sequence)
 
 Example response format:
 {
   "chronologicalOrder": [0, 2, 1, 3],
+  "projectStatus": "completed",
   "captions": [
     {"platform": "Instagram", "text": "Transformation complete! 🔨..."},
     {"platform": "LinkedIn", "text": "Proud to showcase..."}
@@ -105,9 +126,9 @@ Example response format:
       "afterPhotoIndex": 3
     },
     {
-      "type": "carousel",
-      "description": "Full project timeline",
-      "photoIndices": [0, 1, 2, 3]
+      "type": "slideshow",
+      "description": "Complete project journey for video reel",
+      "photoIndices": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
     }
   ]
 }
@@ -188,22 +209,98 @@ Return ONLY valid JSON.`
       }
     }
 
+    // Adjust batch indices to global indices for layouts
+    const adjustedLayouts = [];
+    for (let batchIndex = 0; batchIndex < batchResults.length; batchIndex++) {
+      const offset = batchIndex * BATCH_SIZE;
+      const batchLayouts = (batchResults[batchIndex].layouts || []).map((layout: any) => ({
+        ...layout,
+        beforePhotoIndex: layout.beforePhotoIndex !== undefined ? layout.beforePhotoIndex + offset : undefined,
+        afterPhotoIndex: layout.afterPhotoIndex !== undefined ? layout.afterPhotoIndex + offset : undefined,
+        photoIndices: layout.photoIndices ? layout.photoIndices.map((idx: number) => idx + offset) : undefined
+      }));
+      adjustedLayouts.push(...batchLayouts);
+    }
+
+    // Second AI pass: Get global chronological order across all photos
+    console.log('Making second AI pass for global chronological ordering...');
+    
+    const orderingMessages = [
+      {
+        role: 'system',
+        content: 'You are analyzing construction photos to determine their chronological order. Identify project progression stages: demolition → structural work → finishing → completed. Return ONLY a JSON array of photo indices in chronological order.'
+      },
+      {
+        role: 'user',
+        content: [
+          {
+            type: 'text',
+            text: `Analyze ALL ${photos.length} construction photos and return them in chronological order (earliest to latest stage of construction). 
+
+Consider:
+- Demolition/clearing stages come first
+- Structural/framing work comes next
+- Finishing work (drywall, painting, fixtures) comes later
+- Completed/clean photos come last
+
+Return ONLY a JSON object: {"chronologicalOrder": [array of indices 0 to ${photos.length - 1}]}`
+          },
+          ...photos.slice(0, 80).map((photo: any) => ({
+            type: 'image_url',
+            image_url: { url: photo.url }
+          }))
+        ]
+      }
+    ];
+
+    const orderingResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'google/gemini-2.5-flash',
+        messages: orderingMessages,
+        max_tokens: 1000,
+      }),
+    });
+
+    let globalChronologicalOrder = photos.map((_: any, idx: number) => idx); // fallback
+    
+    if (orderingResponse.ok) {
+      const orderingData = await orderingResponse.json();
+      const orderingContent = orderingData.choices?.[0]?.message?.content || '';
+      console.log('Global ordering AI response:', orderingContent.substring(0, 200));
+      
+      try {
+        const jsonMatch = orderingContent.match(/```json\n([\s\S]*?)\n```/) || orderingContent.match(/```\n([\s\S]*?)\n```/);
+        const jsonStr = jsonMatch ? jsonMatch[1] : orderingContent;
+        const orderingResult = JSON.parse(jsonStr);
+        globalChronologicalOrder = orderingResult.chronologicalOrder || globalChronologicalOrder;
+      } catch (e) {
+        console.error('Failed to parse ordering response:', e);
+      }
+    }
+
     // Combine results from all batches
     const result = {
-      chronologicalOrder: batchResults.flatMap(r => r.chronologicalOrder || []),
+      chronologicalOrder: globalChronologicalOrder,
       captions: batchResults.flatMap(r => r.captions || []),
-      hashtags: [...new Set(batchResults.flatMap(r => r.hashtags || []))], // Remove duplicates
-      layouts: batchResults.flatMap(r => r.layouts || [])
+      hashtags: [...new Set(batchResults.flatMap(r => r.hashtags || []))],
+      layouts: adjustedLayouts,
+      projectStatus: batchResults[0]?.projectStatus || 'in-progress'
     };
 
     return new Response(
       JSON.stringify({
         success: true,
         data: {
-          chronologicalOrder: result.chronologicalOrder || photos.map((_: any, idx: number) => idx),
+          chronologicalOrder: result.chronologicalOrder,
           captions: result.captions || [],
           hashtags: result.hashtags || [],
-          layouts: result.layouts || []
+          layouts: result.layouts || [],
+          projectStatus: result.projectStatus
         }
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
