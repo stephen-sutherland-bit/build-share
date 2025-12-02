@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Download, ChevronLeft, ChevronRight, Play, Pause, SkipBack, SkipForward, Video, Trash2 } from "lucide-react";
+import { X, Download, ChevronLeft, ChevronRight, Play, Pause, SkipBack, SkipForward, Video, Trash2, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { BeforeAfterSlider } from "./BeforeAfterSlider";
@@ -28,6 +28,7 @@ interface LayoutPreviewModalProps {
 
 export const LayoutPreviewModal = ({ isOpen, onClose, layout, photos, onUpdateLayout }: LayoutPreviewModalProps) => {
   const [editableLayout, setEditableLayout] = useState<Layout>(layout);
+  const [showAddPhotos, setShowAddPhotos] = useState(false);
   
   // Sync when layout prop changes
   useEffect(() => {
@@ -71,6 +72,26 @@ export const LayoutPreviewModal = ({ isOpen, onClose, layout, photos, onUpdateLa
 
   const layoutPhotos = getLayoutPhotos();
   const photoIndices = getPhotoIndices();
+
+  // Get available photos not in current layout
+  const availablePhotos = photos.map((photo, idx) => ({ photo, idx }))
+    .filter(({ idx }) => !photoIndices.includes(idx));
+
+  const addPhotoToLayout = (photoIndex: number) => {
+    let updatedLayout: Layout;
+
+    if (editableLayout.photoIndices) {
+      updatedLayout = { ...editableLayout, photoIndices: [...editableLayout.photoIndices, photoIndex] };
+    } else {
+      // Create photoIndices from current photos plus the new one
+      const currentIndices = photos.map((_, i) => i);
+      updatedLayout = { ...editableLayout, photoIndices: [...currentIndices, photoIndex] };
+    }
+
+    setEditableLayout(updatedLayout);
+    onUpdateLayout?.(updatedLayout);
+    toast.success("Photo added to layout");
+  };
 
   const removePhotoFromLayout = (indexInLayout: number) => {
     if (layoutPhotos.length <= 1) {
@@ -408,6 +429,57 @@ export const LayoutPreviewModal = ({ isOpen, onClose, layout, photos, onUpdateLa
               <p className="text-center text-sm text-muted-foreground mt-4">
                 Hero image • Best shot for maximum impact
               </p>
+            </div>
+          )}
+
+          {/* Add Photos Section */}
+          {onUpdateLayout && !isBeforeAfter && availablePhotos.length > 0 && (
+            <div className="mt-6 pt-6 border-t border-border">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h3 className="text-sm font-semibold">Add Photos</h3>
+                  <p className="text-xs text-muted-foreground">{availablePhotos.length} photos available to add</p>
+                </div>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => setShowAddPhotos(!showAddPhotos)}
+                >
+                  <Plus className="mr-2 h-4 w-4" />
+                  {showAddPhotos ? 'Hide' : 'Show'} Photos
+                </Button>
+              </div>
+              
+              <AnimatePresence>
+                {showAddPhotos && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="overflow-hidden"
+                  >
+                    <div className="flex gap-2 flex-wrap max-h-40 overflow-y-auto p-2 bg-muted/30 rounded-xl">
+                      {availablePhotos.map(({ photo, idx }) => (
+                        <motion.button
+                          key={idx}
+                          onClick={() => addPhotoToLayout(idx)}
+                          className="relative w-16 h-16 rounded-lg overflow-hidden border-2 border-transparent hover:border-primary transition-all group"
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
+                        >
+                          <img src={photo.url} alt={`Photo ${idx + 1}`} className="w-full h-full object-cover" />
+                          <div className="absolute inset-0 bg-primary/0 group-hover:bg-primary/20 transition-colors flex items-center justify-center">
+                            <Plus className="h-6 w-6 text-white opacity-0 group-hover:opacity-100 drop-shadow-lg" />
+                          </div>
+                          <span className="absolute bottom-0 left-0 right-0 text-[10px] bg-black/60 text-white text-center py-0.5">
+                            #{idx + 1}
+                          </span>
+                        </motion.button>
+                      ))}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
           )}
         </div>
