@@ -1,24 +1,31 @@
 import { useCallback } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
 import { Upload, Sparkles, ImageIcon } from "lucide-react";
 import { useDropzone } from "react-dropzone";
 import { toast } from "sonner";
+
+const MAX_PHOTOS = 80;
 
 interface PhotoUploaderProps {
   onUpload: (files: File[]) => void;
   onProcess: () => void;
   isProcessing: boolean;
   photoCount: number;
+  processingProgress?: { currentBatch: number; totalBatches: number } | null;
 }
 
-export const PhotoUploader = ({ onUpload, onProcess, isProcessing, photoCount }: PhotoUploaderProps) => {
+export const PhotoUploader = ({ onUpload, onProcess, isProcessing, photoCount, processingProgress }: PhotoUploaderProps) => {
   const onDrop = useCallback((acceptedFiles: File[]) => {
     const imageFiles = acceptedFiles.filter(file => file.type.startsWith('image/'));
     if (imageFiles.length !== acceptedFiles.length) {
       toast.error("Only image files are accepted");
     }
-    if (imageFiles.length > 0) {
+    if (imageFiles.length > MAX_PHOTOS) {
+      toast.warning(`Maximum ${MAX_PHOTOS} photos allowed. Only the first ${MAX_PHOTOS} will be processed.`);
+      onUpload(imageFiles.slice(0, MAX_PHOTOS));
+    } else if (imageFiles.length > 0) {
       onUpload(imageFiles);
     }
   }, [onUpload]);
@@ -41,7 +48,7 @@ export const PhotoUploader = ({ onUpload, onProcess, isProcessing, photoCount }:
           <div>
             <CardTitle className="text-2xl font-display">Upload Job Photos</CardTitle>
             <CardDescription>
-              Drag and drop multiple photos from your completed construction project
+              Drag and drop multiple photos from your completed construction project (maximum {MAX_PHOTOS} photos)
             </CardDescription>
           </div>
         </div>
@@ -72,27 +79,38 @@ export const PhotoUploader = ({ onUpload, onProcess, isProcessing, photoCount }:
         </div>
 
         {photoCount > 0 && (
-          <div className="flex items-center justify-between p-4 bg-muted rounded-lg">
-            <div className="flex items-center gap-2">
-              <div className="h-2 w-2 rounded-full bg-accent animate-pulse" />
-              <span className="text-sm font-medium">
-                {photoCount} photo{photoCount !== 1 ? 's' : ''} ready
-              </span>
+          <div className="space-y-4">
+            <div className="flex items-center justify-between p-4 bg-muted rounded-lg">
+              <div className="flex items-center gap-2">
+                <div className="h-2 w-2 rounded-full bg-accent animate-pulse" />
+                <span className="text-sm font-medium">
+                  {photoCount} photo{photoCount !== 1 ? 's' : ''} ready
+                </span>
+              </div>
+              <Button
+                onClick={onProcess}
+                disabled={isProcessing}
+                className="gradient-accent hover:opacity-90 transition-smooth"
+              >
+                {isProcessing ? (
+                  <>Processing...</>
+                ) : (
+                  <>
+                    <Sparkles className="mr-2 h-4 w-4" />
+                    Process with AI
+                  </>
+                )}
+              </Button>
             </div>
-            <Button
-              onClick={onProcess}
-              disabled={isProcessing}
-              className="gradient-accent hover:opacity-90 transition-smooth"
-            >
-              {isProcessing ? (
-                <>Processing...</>
-              ) : (
-                <>
-                  <Sparkles className="mr-2 h-4 w-4" />
-                  Process with AI
-                </>
-              )}
-            </Button>
+            
+            {isProcessing && processingProgress && (
+              <div className="space-y-2 p-4 bg-muted/50 rounded-lg">
+                <Progress value={(processingProgress.currentBatch / processingProgress.totalBatches) * 100} />
+                <p className="text-sm text-muted-foreground text-center">
+                  Processing batch {processingProgress.currentBatch} of {processingProgress.totalBatches}...
+                </p>
+              </div>
+            )}
           </div>
         )}
       </CardContent>
