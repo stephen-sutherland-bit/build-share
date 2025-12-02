@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Share2, Download, Copy, Instagram, Linkedin, Facebook, Twitter, ChevronDown, RotateCcw } from "lucide-react";
+import { Share2, Download, Copy, Instagram, Linkedin, Facebook, Twitter, ChevronDown, RotateCcw, Save, CheckCircle } from "lucide-react";
 import { toast } from "sonner";
 import JSZip from "jszip";
 import { saveAs } from "file-saver";
@@ -30,9 +30,12 @@ interface ProcessedContent {
 
 interface ContentPreviewProps {
   content: ProcessedContent;
+  onSave?: () => void;
+  currentProjectName?: string;
+  isSaved?: boolean;
 }
 
-export const ContentPreview = ({ content }: ContentPreviewProps) => {
+export const ContentPreview = ({ content, onSave, currentProjectName, isSaved }: ContentPreviewProps) => {
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState(0);
   const [selectedLayout, setSelectedLayout] = useState<typeof content.layouts[0] | null>(null);
@@ -193,7 +196,26 @@ export const ContentPreview = ({ content }: ContentPreviewProps) => {
                 Review and export your social media content
               </CardDescription>
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-2 flex-wrap">
+              {onSave && (
+                <Button 
+                  variant={isSaved ? "outline" : "default"}
+                  onClick={onSave}
+                  className={isSaved ? "" : "bg-green-600 hover:bg-green-700"}
+                >
+                  {isSaved ? (
+                    <>
+                      <CheckCircle className="mr-2 h-4 w-4 text-green-500" />
+                      Saved
+                    </>
+                  ) : (
+                    <>
+                      <Save className="mr-2 h-4 w-4" />
+                      Save Project
+                    </>
+                  )}
+                </Button>
+              )}
               <Button variant="outline" onClick={handleExportAll} disabled={isExporting}>
                 <Download className="mr-2 h-4 w-4" />
                 {isExporting ? "Exporting..." : "Export All"}

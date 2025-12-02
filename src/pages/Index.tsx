@@ -1,10 +1,13 @@
 import { useState, useEffect } from "react";
 import { PhotoUploader } from "@/components/PhotoUploader";
 import { ContentPreview } from "@/components/ContentPreview";
+import { ProjectSelector } from "@/components/ProjectSelector";
+import { SaveProjectDialog } from "@/components/SaveProjectDialog";
 import { Sparkles, Zap, Layout } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useProjects, Project } from "@/hooks/useProjects";
 import { Header } from "@/components/Header";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
@@ -33,6 +36,8 @@ interface ProcessedContent {
 
 const Index = () => {
   const { user } = useAuth();
+  const { projects, loading: loadingProjects, saveProject, deleteProject } = useProjects();
+  
   const [companyDetails, setCompanyDetails] = useState<CompanyDetails | null>(null);
   const [uploadedPhotos, setUploadedPhotos] = useState<File[]>([]);
   const [processedContent, setProcessedContent] = useState<ProcessedContent | null>(null);
@@ -43,11 +48,24 @@ const Index = () => {
     totalBatches: number;
   } | null>(null);
 
+  // Project state
+  const [currentProjectId, setCurrentProjectId] = useState<string | null>(null);
+  const [currentProjectName, setCurrentProjectName] = useState<string>('');
+  const [isSaved, setIsSaved] = useState(false);
+  const [saveDialogOpen, setSaveDialogOpen] = useState(false);
+
   useEffect(() => {
     if (user) {
       loadCompanyDetails();
     }
   }, [user]);
+
+  // Reset saved state when content changes
+  useEffect(() => {
+    if (processedContent) {
+      setIsSaved(false);
+    }
+  }, [processedContent]);
 
   const loadCompanyDetails = async () => {
     if (!user) return;
@@ -78,6 +96,10 @@ const Index = () => {
 
   const handlePhotosUpload = (files: File[]) => {
     setUploadedPhotos(files);
+    // Clear previous project when uploading new photos
+    setCurrentProjectId(null);
+    setCurrentProjectName('');
+    setIsSaved(false);
     toast.success(`${files.length} photos uploaded!`);
   };
 
@@ -169,6 +191,45 @@ const Index = () => {
     }
   };
 
+  const handleLoadProject = (project: Project) => {
+    setProcessedContent({
+      photos: project.photos,
+      captions: project.captions,
+      hashtags: project.hashtags,
+      layouts: project.layouts,
+    });
+    setCurrentProjectId(project.id);
+    setCurrentProjectName(project.name);
+    setIsSaved(true);
+    setUploadedPhotos([]); // Clear uploaded files since we're loading from saved
+    toast.success(`Loaded "${project.name}"`);
+  };
+
+  const handleSaveClick = () => {
+    setSaveDialogOpen(true);
+  };
+
+  const handleSaveProject = async (name: string) => {
+    if (!processedContent || !companyDetails) return;
+    
+    const savedId = await saveProject(name, processedContent, companyDetails, currentProjectId || undefined);
+    if (savedId) {
+      setCurrentProjectId(savedId);
+      setCurrentProjectName(name);
+      setIsSaved(true);
+    }
+  };
+
+  const handleDeleteProject = async (id: string) => {
+    const deleted = await deleteProject(id);
+    if (deleted && id === currentProjectId) {
+      // If we deleted the currently loaded project, clear the state
+      setCurrentProjectId(null);
+      setCurrentProjectName('');
+      setIsSaved(false);
+    }
+  };
+
   return (
     <div className="min-h-screen gradient-hero">
       <Header />
@@ -237,6 +298,16 @@ const Index = () => {
           </div>
         ) : (
           <>
+            {/* Saved Projects Section */}
+            <section className="animate-fade-in">
+              <ProjectSelector
+                projects={projects}
+                loading={loadingProjects}
+                onSelect={handleLoadProject}
+                onDelete={handleDeleteProject}
+              />
+            </section>
+
             {/* Photo Upload Section */}
             <section className="animate-slide-in">
               <PhotoUploader 
@@ -251,12 +322,26 @@ const Index = () => {
             {/* Content Preview Section */}
             {processedContent && (
               <section className="animate-fade-in">
-                <ContentPreview content={processedContent} />
+                <ContentPreview 
+                  content={processedContent}
+                  onSave={handleSaveClick}
+                  currentProjectName={currentProjectName}
+                  isSaved={isSaved}
+                />
               </section>
             )}
           </>
         )}
       </main>
+
+      {/* Save Dialog */}
+      <SaveProjectDialog
+        isOpen={saveDialogOpen}
+        onClose={() => setSaveDialogOpen(false)}
+        onSave={handleSaveProject}
+        defaultName={currentProjectName}
+        isUpdate={!!currentProjectId}
+      />
 
       {/* Footer */}
       <footer className="border-t border-border mt-16 py-8">

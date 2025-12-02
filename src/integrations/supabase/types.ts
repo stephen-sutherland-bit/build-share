@@ -47,6 +47,45 @@ export type Database = {
         }
         Relationships: []
       }
+      projects: {
+        Row: {
+          captions: Json | null
+          company_details: Json | null
+          created_at: string
+          hashtags: Json | null
+          id: string
+          layouts: Json | null
+          name: string
+          photos: Json
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          captions?: Json | null
+          company_details?: Json | null
+          created_at?: string
+          hashtags?: Json | null
+          id?: string
+          layouts?: Json | null
+          name: string
+          photos?: Json
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          captions?: Json | null
+          company_details?: Json | null
+          created_at?: string
+          hashtags?: Json | null
+          id?: string
+          layouts?: Json | null
+          name?: string
+          photos?: Json
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
