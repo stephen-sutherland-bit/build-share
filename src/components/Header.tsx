@@ -1,4 +1,4 @@
-import { Building2, Settings, LogOut, ShieldCheck } from "lucide-react";
+import { Building2, Settings, LogOut, ShieldCheck, Shield } from "lucide-react";
 import { Link } from "react-router-dom";
 import {
   DropdownMenu,
@@ -64,6 +64,14 @@ export const Header = () => {
                   <span>Company Settings</span>
                 </Link>
               </DropdownMenuItem>
+              {role === 'admin' && (
+                <DropdownMenuItem asChild>
+                  <Link to="/admin" className="cursor-pointer">
+                    <Shield className="mr-2 h-4 w-4" />
+                    <span>Admin Panel</span>
+                  </Link>
+                </DropdownMenuItem>
+              )}
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={() => signOut()} className="cursor-pointer text-destructive focus:text-destructive">
                 <LogOut className="mr-2 h-4 w-4" />
