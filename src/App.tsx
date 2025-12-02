@@ -14,13 +14,25 @@ import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
+// Handle GitHub Pages SPA redirect
+(function() {
+  const params = new URLSearchParams(window.location.search);
+  const redirectPath = params.get('p');
+  if (redirectPath) {
+    const decoded = redirectPath.replace(/~and~/g, '&');
+    const query = params.get('q');
+    const search = query ? '?' + query.replace(/~and~/g, '&') : '';
+    window.history.replaceState(null, '', '/' + decoded + search + window.location.hash);
+  }
+})();
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
     <TooltipProvider>
       <Toaster />
       <Sonner />
-      <BrowserRouter>
+      <BrowserRouter basename={import.meta.env.BASE_URL}>
         <Routes>
           <Route path="/auth" element={<Auth />} />
           <Route path="/access-denied" element={<AccessDenied />} />
