@@ -31,6 +31,10 @@ const Index = () => {
   const [processedContent, setProcessedContent] = useState<ProcessedContent | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [loadingCompany, setLoadingCompany] = useState(true);
+  const [processingProgress, setProcessingProgress] = useState<{
+    currentBatch: number;
+    totalBatches: number;
+  } | null>(null);
 
   useEffect(() => {
     if (user) {
@@ -82,6 +86,18 @@ const Index = () => {
 
     setIsProcessing(true);
     toast.info("Processing photos with AI...");
+
+    const totalBatches = Math.ceil(uploadedPhotos.length / 10);
+    setProcessingProgress({ currentBatch: 0, totalBatches });
+
+    const progressInterval = setInterval(() => {
+      setProcessingProgress(prev => {
+        if (prev && prev.currentBatch < prev.totalBatches) {
+          return { ...prev, currentBatch: prev.currentBatch + 1 };
+        }
+        return prev;
+      });
+    }, 6000);
 
     try {
       // Convert files to base64 for AI processing
@@ -140,6 +156,8 @@ const Index = () => {
       console.error('Processing error:', error);
       toast.error(error instanceof Error ? error.message : 'Failed to process photos');
     } finally {
+      clearInterval(progressInterval);
+      setProcessingProgress(null);
       setIsProcessing(false);
     }
   };
@@ -219,6 +237,7 @@ const Index = () => {
                 onProcess={handleProcess}
                 isProcessing={isProcessing}
                 photoCount={uploadedPhotos.length}
+                processingProgress={processingProgress}
               />
             </section>
 
