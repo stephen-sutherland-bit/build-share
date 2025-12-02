@@ -6,7 +6,7 @@ import { toast } from "sonner";
 
 interface ProcessedContent {
   photos: Array<{ url: string; timestamp?: string }>;
-  captions: string[];
+  captions: Array<{ platform?: string; text: string } | string>;
   hashtags: string[];
   layouts: Array<{ type: string; preview: string }>;
 }
@@ -148,20 +148,32 @@ export const ContentPreview = ({ content }: ContentPreviewProps) => {
           </TabsContent>
 
           <TabsContent value="captions" className="space-y-4">
-            {content.captions.map((caption, idx) => (
-              <div key={idx} className="border border-border rounded-lg p-4 hover:shadow-soft transition-smooth">
-                <div className="flex items-start justify-between gap-4">
-                  <p className="text-sm flex-1">{caption}</p>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleCopy(caption)}
-                  >
-                    <Copy className="h-4 w-4" />
-                  </Button>
+            {content.captions.map((caption, idx) => {
+              const captionText = typeof caption === 'string' ? caption : caption.text;
+              const platform = typeof caption === 'object' && caption.platform ? caption.platform : null;
+              
+              return (
+                <div key={idx} className="border border-border rounded-lg p-4 hover:shadow-soft transition-smooth">
+                  {platform && (
+                    <div className="mb-2">
+                      <span className="text-xs font-medium text-primary px-2 py-1 bg-primary/10 rounded">
+                        {platform}
+                      </span>
+                    </div>
+                  )}
+                  <div className="flex items-start justify-between gap-4">
+                    <p className="text-sm flex-1">{captionText}</p>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleCopy(captionText)}
+                    >
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </TabsContent>
 
           <TabsContent value="hashtags" className="space-y-4">
