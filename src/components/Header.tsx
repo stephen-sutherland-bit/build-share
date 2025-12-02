@@ -20,60 +20,65 @@ export const Header = () => {
   };
 
   return (
-    <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-50">
-      <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-        <Link to="/" className="flex items-center gap-3 hover:opacity-80 transition-smooth">
-          <div className="h-10 w-10 rounded-lg gradient-primary flex items-center justify-center">
-            <Building2 className="h-6 w-6 text-primary-foreground" />
+    <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/60">
+      <div className="container mx-auto px-4 h-16 flex items-center justify-between">
+        <Link to="/" className="flex items-center gap-3 group">
+          <div className="h-10 w-10 rounded-xl gradient-primary flex items-center justify-center shadow-soft transition-spring group-hover:shadow-medium group-hover:scale-105">
+            <Building2 className="h-5 w-5 text-primary-foreground" />
           </div>
-          <div>
-            <h1 className="text-xl font-display font-bold text-foreground">
+          <div className="flex flex-col">
+            <span className="text-lg font-display font-bold tracking-tight text-foreground">
               BuildPost AI
-            </h1>
-            <p className="text-sm text-muted-foreground">Construction Content Creator</p>
+            </span>
+            <span className="text-xs text-muted-foreground tracking-tight">
+              Construction Content Creator
+            </span>
           </div>
         </Link>
 
         {user && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="relative h-10 w-10 rounded-full">
+              <Button variant="ghost" className="relative h-10 w-10 rounded-full ring-1 ring-border hover:ring-primary/50 transition-smooth">
                 <Avatar className="h-10 w-10">
-                  <AvatarFallback className="gradient-primary text-primary-foreground">
+                  <AvatarFallback className="gradient-primary text-primary-foreground text-sm font-semibold">
                     {getInitials(user.email || 'U')}
                   </AvatarFallback>
                 </Avatar>
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent className="w-56" align="end">
-              <DropdownMenuLabel>
-                <div className="flex flex-col space-y-1">
-                  <p className="text-sm font-medium leading-none">{user.email}</p>
+            <DropdownMenuContent className="w-56 shadow-strong border-border/50" align="end" sideOffset={8}>
+              <DropdownMenuLabel className="font-normal">
+                <div className="flex flex-col space-y-1.5">
+                  <p className="text-sm font-medium leading-none tracking-tight">{user.email}</p>
                   {role === 'admin' && (
-                    <p className="text-xs leading-none text-muted-foreground flex items-center gap-1 mt-1">
+                    <p className="text-xs leading-none text-primary flex items-center gap-1">
                       <ShieldCheck className="h-3 w-3" />
                       Administrator
                     </p>
                   )}
                 </div>
               </DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem asChild>
-                <Link to="/settings" className="cursor-pointer">
-                  <Settings className="mr-2 h-4 w-4" />
+              <DropdownMenuSeparator className="bg-border/50" />
+              <DropdownMenuItem asChild className="cursor-pointer focus:bg-muted">
+                <Link to="/settings" className="flex items-center">
+                  <Settings className="mr-2 h-4 w-4 text-muted-foreground" />
                   <span>Company Settings</span>
                 </Link>
               </DropdownMenuItem>
               {role === 'admin' && (
-                <DropdownMenuItem asChild>
-                  <Link to="/admin" className="cursor-pointer">
-                    <Shield className="mr-2 h-4 w-4" />
+                <DropdownMenuItem asChild className="cursor-pointer focus:bg-muted">
+                  <Link to="/admin" className="flex items-center">
+                    <Shield className="mr-2 h-4 w-4 text-muted-foreground" />
                     <span>Admin Panel</span>
                   </Link>
                 </DropdownMenuItem>
               )}
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => signOut()} className="cursor-pointer text-destructive focus:text-destructive">
+              <DropdownMenuSeparator className="bg-border/50" />
+              <DropdownMenuItem 
+                onClick={() => signOut()} 
+                className="cursor-pointer text-destructive focus:text-destructive focus:bg-destructive/10"
+              >
                 <LogOut className="mr-2 h-4 w-4" />
                 <span>Sign Out</span>
               </DropdownMenuItem>
