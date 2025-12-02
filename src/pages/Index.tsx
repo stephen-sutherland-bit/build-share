@@ -249,7 +249,7 @@ const Index = () => {
           <div className="max-w-3xl mx-auto text-center space-y-6 animate-fade-in">
             <h2 className="text-4xl md:text-6xl font-display font-bold text-foreground">
               Transform Job Photos into 
-              <span className="block gradient-primary bg-clip-text text-transparent mt-2">
+              <span className="block gradient-text-primary mt-2">
                 Social Media Gold
               </span>
             </h2>
