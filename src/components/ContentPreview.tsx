@@ -187,12 +187,12 @@ export const ContentPreview = ({ content, onSave, currentProjectName, isSaved }:
 
   return (
     <>
-      <Card className="shadow-medium border-border/50">
-        <CardHeader>
+      <Card className="shadow-soft hover:shadow-medium transition-smooth border-border/50 bg-card/80 backdrop-blur-sm">
+        <CardHeader className="pb-4">
           <div className="flex items-center justify-between flex-wrap gap-4">
-            <div>
-              <CardTitle className="text-2xl font-display">Your Content is Ready!</CardTitle>
-              <CardDescription>
+            <div className="space-y-1">
+              <CardTitle className="text-xl font-display tracking-tight">Your Content is Ready!</CardTitle>
+              <CardDescription className="text-sm">
                 Review and export your social media content
               </CardDescription>
             </div>
@@ -201,11 +201,14 @@ export const ContentPreview = ({ content, onSave, currentProjectName, isSaved }:
                 <Button 
                   variant={isSaved ? "outline" : "default"}
                   onClick={onSave}
-                  className={isSaved ? "" : "bg-green-600 hover:bg-green-700"}
+                  className={`transition-smooth ${isSaved 
+                    ? "border-green-500/30 text-green-600 hover:bg-green-500/10" 
+                    : "bg-green-600 hover:bg-green-700 shadow-soft hover:shadow-medium"
+                  }`}
                 >
                   {isSaved ? (
                     <>
-                      <CheckCircle className="mr-2 h-4 w-4 text-green-500" />
+                      <CheckCircle className="mr-2 h-4 w-4" />
                       Saved
                     </>
                   ) : (
@@ -216,32 +219,37 @@ export const ContentPreview = ({ content, onSave, currentProjectName, isSaved }:
                   )}
                 </Button>
               )}
-              <Button variant="outline" onClick={handleExportAll} disabled={isExporting}>
+              <Button 
+                variant="outline" 
+                onClick={handleExportAll} 
+                disabled={isExporting}
+                className="border-border/50 hover:bg-muted/50 transition-smooth"
+              >
                 <Download className="mr-2 h-4 w-4" />
                 {isExporting ? "Exporting..." : "Export All"}
               </Button>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button className="gradient-primary">
+                  <Button className="gradient-primary shadow-soft hover:shadow-medium hover:opacity-95 transition-smooth">
                     <Share2 className="mr-2 h-4 w-4" />
                     Share to Social
                     <ChevronDown className="ml-2 h-4 w-4" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-48">
-                  <DropdownMenuItem onClick={() => copyForPlatform('instagram')} className="cursor-pointer">
+                <DropdownMenuContent align="end" className="w-48 shadow-strong border-border/50">
+                  <DropdownMenuItem onClick={() => copyForPlatform('instagram')} className="cursor-pointer focus:bg-muted">
                     <Instagram className="mr-2 h-4 w-4 text-pink-500" />
                     Copy for Instagram
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => copyForPlatform('linkedin')} className="cursor-pointer">
+                  <DropdownMenuItem onClick={() => copyForPlatform('linkedin')} className="cursor-pointer focus:bg-muted">
                     <Linkedin className="mr-2 h-4 w-4 text-blue-600" />
                     Copy for LinkedIn
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => copyForPlatform('facebook')} className="cursor-pointer">
+                  <DropdownMenuItem onClick={() => copyForPlatform('facebook')} className="cursor-pointer focus:bg-muted">
                     <Facebook className="mr-2 h-4 w-4 text-blue-500" />
                     Copy for Facebook
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => copyForPlatform('twitter')} className="cursor-pointer">
+                  <DropdownMenuItem onClick={() => copyForPlatform('twitter')} className="cursor-pointer focus:bg-muted">
                     <Twitter className="mr-2 h-4 w-4" />
                     Copy for X/Twitter
                   </DropdownMenuItem>
@@ -252,22 +260,22 @@ export const ContentPreview = ({ content, onSave, currentProjectName, isSaved }:
         </CardHeader>
         <CardContent>
           <Tabs defaultValue="photos" className="w-full">
-            <TabsList className="grid w-full grid-cols-4">
-              <TabsTrigger value="photos">Photos</TabsTrigger>
-              <TabsTrigger value="layouts">Layouts</TabsTrigger>
-              <TabsTrigger value="captions">Captions</TabsTrigger>
-              <TabsTrigger value="hashtags">Hashtags</TabsTrigger>
+            <TabsList className="grid w-full grid-cols-4 bg-muted/50 p-1 rounded-xl">
+              <TabsTrigger value="photos" className="rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-soft transition-smooth">Photos</TabsTrigger>
+              <TabsTrigger value="layouts" className="rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-soft transition-smooth">Layouts</TabsTrigger>
+              <TabsTrigger value="captions" className="rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-soft transition-smooth">Captions</TabsTrigger>
+              <TabsTrigger value="hashtags" className="rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-soft transition-smooth">Hashtags</TabsTrigger>
             </TabsList>
             
-            <TabsContent value="photos" className="space-y-4">
+            <TabsContent value="photos" className="space-y-4 mt-6">
               {hasReorderedPhotos && (
-                <div className="flex items-center justify-between p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg">
-                  <p className="text-sm text-amber-600 dark:text-amber-400">
-                    You've reordered the photos. The new order will be used for exports.
+                <div className="flex items-center justify-between p-4 bg-amber-500/10 border border-amber-500/20 rounded-xl">
+                  <p className="text-sm text-amber-600 dark:text-amber-400 font-medium">
+                    Photos reordered — new order will be used for exports
                   </p>
-                  <Button variant="outline" size="sm" onClick={resetPhotoOrder}>
+                  <Button variant="outline" size="sm" onClick={resetPhotoOrder} className="border-amber-500/30 hover:bg-amber-500/10">
                     <RotateCcw className="mr-2 h-3 w-3" />
-                    Reset Order
+                    Reset
                   </Button>
                 </div>
               )}
@@ -297,12 +305,12 @@ export const ContentPreview = ({ content, onSave, currentProjectName, isSaved }:
                 </SortableContext>
               </DndContext>
               
-              <p className="text-sm text-muted-foreground text-center">
-                {orderedPhotos.length} photos • Drag to reorder • Click to preview • Hover to download
+              <p className="text-sm text-muted-foreground text-center pt-2">
+                {orderedPhotos.length} photos • Drag to reorder • Click to preview
               </p>
             </TabsContent>
             
-            <TabsContent value="layouts" className="space-y-4">
+            <TabsContent value="layouts" className="space-y-4 mt-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {content.layouts.map((layout, idx) => {
                   const layoutType = layout.type.toLowerCase();
@@ -315,21 +323,21 @@ export const ContentPreview = ({ content, onSave, currentProjectName, isSaved }:
                   return (
                     <motion.div 
                       key={idx} 
-                      className="border border-border rounded-lg p-4 hover:shadow-medium hover:border-primary/50 transition-all space-y-3 cursor-pointer group"
+                      className="border border-border/50 rounded-xl p-5 hover:shadow-medium hover:border-primary/30 bg-muted/20 transition-all duration-200 space-y-4 cursor-pointer group"
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: idx * 0.1 }}
                       whileHover={{ scale: 1.01 }}
                       onClick={() => setSelectedLayout(layout)}
                     >
-                      <div className="space-y-2">
+                      <div className="space-y-1.5">
                         <div className="flex items-center justify-between">
-                          <p className="text-sm font-semibold capitalize">{layout.type} Layout</p>
-                          <span className="text-xs text-primary opacity-0 group-hover:opacity-100 transition-opacity">
-                            Click to preview →
+                          <p className="text-sm font-semibold capitalize tracking-tight">{layout.type} Layout</p>
+                          <span className="text-xs text-primary font-medium opacity-0 group-hover:opacity-100 transition-opacity">
+                            Preview →
                           </span>
                         </div>
-                        <p className="text-xs text-muted-foreground">
+                        <p className="text-xs text-muted-foreground leading-relaxed">
                           {layout.description || layout.preview || 'AI-generated layout suggestion'}
                         </p>
                       </div>
