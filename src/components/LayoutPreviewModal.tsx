@@ -40,7 +40,10 @@ export const LayoutPreviewModal = ({ isOpen, onClose, layout, photos, onUpdateLa
   const isCarousel = layoutType.includes('carousel');
   const isGrid = layoutType.includes('grid');
   const isHighlight = layoutType.includes('highlight') || layoutType.includes('single');
-  const isSlideshow = layoutType.includes('slideshow');
+  const isSlideshow = layoutType.includes('slideshow') || layoutType.includes('video');
+  const isCollage = layoutType.includes('collage');
+  const isTriptych = layoutType.includes('triptych');
+  const isStory = layoutType.includes('story') || layoutType.includes('vertical');
 
   const [carouselIndex, setCarouselIndex] = useState(0);
   const [slideshowIndex, setSlideshowIndex] = useState(0);
@@ -417,7 +420,7 @@ export const LayoutPreviewModal = ({ isOpen, onClose, layout, photos, onUpdateLa
           )}
 
           {/* Highlight/Single View */}
-          {isHighlight && !isBeforeAfter && !isCarousel && !isGrid && !isSlideshow && (
+          {isHighlight && !isBeforeAfter && !isCarousel && !isGrid && !isSlideshow && !isCollage && !isTriptych && !isStory && (
             <div className="max-w-3xl mx-auto">
               <motion.img
                 src={layoutPhotos[0]?.url}
@@ -428,6 +431,116 @@ export const LayoutPreviewModal = ({ isOpen, onClose, layout, photos, onUpdateLa
               />
               <p className="text-center text-sm text-muted-foreground mt-4">
                 Hero image • Best shot for maximum impact
+              </p>
+            </div>
+          )}
+
+          {/* Collage View - 1 main + 3 supporting */}
+          {isCollage && (
+            <div className="space-y-4 max-w-3xl mx-auto">
+              <div className="grid grid-cols-3 grid-rows-2 gap-2 aspect-[4/3]">
+                {/* Main large image */}
+                <div className="col-span-2 row-span-2 relative group rounded-xl overflow-hidden">
+                  <motion.img
+                    src={layoutPhotos[0]?.url}
+                    alt="Main"
+                    className="w-full h-full object-cover"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                  />
+                  {onUpdateLayout && layoutPhotos.length > 1 && (
+                    <button
+                      onClick={() => removePhotoFromLayout(0)}
+                      className="absolute top-2 right-2 w-7 h-7 bg-destructive text-destructive-foreground rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-md"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  )}
+                </div>
+                {/* Supporting images */}
+                {layoutPhotos.slice(1, 4).map((photo, idx) => (
+                  <div key={idx} className="relative group rounded-xl overflow-hidden">
+                    <motion.img
+                      src={photo.url}
+                      alt={`Supporting ${idx + 1}`}
+                      className="w-full h-full object-cover"
+                      initial={{ opacity: 0, scale: 0.9 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ delay: (idx + 1) * 0.1 }}
+                    />
+                    {onUpdateLayout && layoutPhotos.length > 1 && (
+                      <button
+                        onClick={() => removePhotoFromLayout(idx + 1)}
+                        className="absolute top-1 right-1 w-6 h-6 bg-destructive text-destructive-foreground rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-md"
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+              <p className="text-center text-sm text-muted-foreground">
+                Feature collage • Perfect for LinkedIn posts
+              </p>
+            </div>
+          )}
+
+          {/* Triptych View - 3 panels */}
+          {isTriptych && (
+            <div className="space-y-4 max-w-4xl mx-auto">
+              <div className="flex gap-2 aspect-[3/1]">
+                {layoutPhotos.slice(0, 3).map((photo, idx) => (
+                  <div key={idx} className="flex-1 relative group rounded-xl overflow-hidden">
+                    <motion.img
+                      src={photo.url}
+                      alt={`Panel ${idx + 1}`}
+                      className="w-full h-full object-cover"
+                      initial={{ opacity: 0, x: idx === 0 ? -20 : idx === 2 ? 20 : 0 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: idx * 0.15 }}
+                    />
+                    {onUpdateLayout && layoutPhotos.length > 1 && (
+                      <button
+                        onClick={() => removePhotoFromLayout(idx)}
+                        className="absolute top-2 right-2 w-7 h-7 bg-destructive text-destructive-foreground rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-md"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    )}
+                    <div className="absolute bottom-2 left-2 px-2 py-1 bg-black/60 rounded text-xs text-white">
+                      {idx === 0 ? 'Start' : idx === 1 ? 'Progress' : 'Result'}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <p className="text-center text-sm text-muted-foreground">
+                Three-panel story • Shows progression beautifully
+              </p>
+            </div>
+          )}
+
+          {/* Story/Vertical View */}
+          {isStory && (
+            <div className="space-y-4 flex flex-col items-center">
+              <div className="w-72 aspect-[9/16] relative group rounded-2xl overflow-hidden shadow-xl border-4 border-muted">
+                <motion.img
+                  src={layoutPhotos[0]?.url}
+                  alt="Story"
+                  className="w-full h-full object-cover"
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                />
+                {onUpdateLayout && (
+                  <button
+                    onClick={() => removePhotoFromLayout(0)}
+                    className="absolute top-3 right-3 w-8 h-8 bg-destructive text-destructive-foreground rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-md"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
+              <p className="text-center text-sm text-muted-foreground">
+                Vertical format • Optimized for Instagram & Facebook Stories
               </p>
             </div>
           )}

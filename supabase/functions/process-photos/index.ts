@@ -61,23 +61,28 @@ Analyze construction project photos and identify:
 3. Clear before/after transformation pairs (same location/angle at different stages)
 4. Best photos for showcasing work quality and craftsmanship
 
-For layouts, ONLY use these EXACT types:
+For layouts, use these EXACT types:
 - "before-after" - Identify specific before and after photo indices showing transformation (skip if project is early in-progress with no clear transformation)
-- "carousel" - Project progression sequence (3-5 photos showing stages)
-- "grid" - Multiple angles or detail shots (4 photos)
-- "highlight" - Single standout photo
+- "carousel" - Project progression sequence (3-8 photos showing stages), perfect for Instagram multi-image posts
+- "grid" - Multiple angles or detail shots (4 photos), ideal for showcasing variety
+- "highlight" - Single standout hero photo that captures the essence of the project
 - "slideshow" - Large photo sequence for video/reel content (10-30+ photos, ideal for showing complete project journey)
+- "collage" - Feature layout with one main photo and 3 supporting photos, great for LinkedIn posts
+- "triptych" - Three-panel story layout (3 photos side by side), perfect for showing progression or different angles
+- "story" - Vertical format single photo, optimized for Instagram/Facebook stories
+
+Generate MULTIPLE layouts of different types to give users options. Aim for 4-6 diverse layouts per batch.
 
 For IN-PROGRESS projects:
 - Use captions that highlight current progress, not completion
-- Focus on "carousel" and "slideshow" layouts to show work progression
+- Focus on "carousel", "slideshow", and "triptych" layouts to show work progression
 - Skip "before-after" if no clear transformation exists yet
 - Emphasize stages completed so far
 
 For COMPLETED projects:
 - Use transformation-focused captions
 - Prioritize "before-after" layouts with clear contrast
-- Showcase finished quality in "highlight" layouts
+- Showcase finished quality in "highlight" and "collage" layouts
 
 When identifying before/after pairs:
 - Same location/angle at different project stages
@@ -100,14 +105,17 @@ Analyze these construction photos (indices ${batchIndex * BATCH_SIZE} to ${Math.
 2. captions: Array of objects with "platform" (Instagram/LinkedIn) and "text" (engaging caption appropriate to project status)
 3. hashtags: 10-15 relevant construction industry hashtags
 4. projectStatus: Either "completed" or "in-progress" based on visual analysis
-5. layouts: Array of layout objects with:
-   - type: MUST be exactly "before-after", "carousel", "grid", "highlight", or "slideshow"
-   - description: What this layout showcases
+5. layouts: Generate 4-6 DIFFERENT layout types. Array of layout objects with:
+   - type: One of "before-after", "carousel", "grid", "highlight", "slideshow", "collage", "triptych", "story"
+   - description: What this layout showcases (be specific and engaging)
    - For "before-after": include beforePhotoIndex and afterPhotoIndex (LOCAL indices, skip if no transformation visible)
-   - For "carousel": include photoIndices array (3-5 LOCAL indices showing progression)
+   - For "carousel": include photoIndices array (3-8 LOCAL indices showing progression)
    - For "grid": include photoIndices array (4 LOCAL indices)
-   - For "highlight": include photoIndices array (1 LOCAL index)
+   - For "highlight": include photoIndices array (1 LOCAL index - best photo)
    - For "slideshow": include photoIndices array (10+ LOCAL indices for full project sequence)
+   - For "collage": include photoIndices array (4 LOCAL indices - first is main, rest are supporting)
+   - For "triptych": include photoIndices array (3 LOCAL indices)
+   - For "story": include photoIndices array (1 LOCAL index - best vertical-friendly photo)
 
 Example response format:
 {
@@ -126,9 +134,24 @@ Example response format:
       "afterPhotoIndex": 3
     },
     {
-      "type": "slideshow",
-      "description": "Complete project journey for video reel",
-      "photoIndices": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+      "type": "carousel",
+      "description": "Step-by-step renovation journey",
+      "photoIndices": [0, 1, 2, 3, 4]
+    },
+    {
+      "type": "collage",
+      "description": "Project overview with key highlights",
+      "photoIndices": [3, 0, 1, 2]
+    },
+    {
+      "type": "triptych",
+      "description": "From demolition through progress to completion",
+      "photoIndices": [0, 2, 3]
+    },
+    {
+      "type": "highlight",
+      "description": "The finished kitchen in all its glory",
+      "photoIndices": [3]
     }
   ]
 }
