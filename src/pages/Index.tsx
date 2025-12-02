@@ -19,7 +19,7 @@ interface CompanyDetails {
 
 interface ProcessedContent {
   photos: Array<{ url: string; timestamp?: string }>;
-  captions: string[];
+  captions: Array<{ platform?: string; text: string } | string>;
   hashtags: string[];
   layouts: Array<{ type: string; preview: string }>;
 }
