@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Download, ChevronLeft, ChevronRight, Play, Pause, SkipBack, SkipForward } from "lucide-react";
+import { X, Download, ChevronLeft, ChevronRight, Play, Pause, SkipBack, SkipForward, Video } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { BeforeAfterSlider } from "./BeforeAfterSlider";
+import { VideoExporter } from "./VideoExporter";
 import { toast } from "sonner";
 import JSZip from "jszip";
 import { saveAs } from "file-saver";
@@ -33,6 +34,7 @@ export const LayoutPreviewModal = ({ isOpen, onClose, layout, photos }: LayoutPr
   const [carouselIndex, setCarouselIndex] = useState(0);
   const [slideshowIndex, setSlideshowIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(true);
+  const [showVideoExporter, setShowVideoExporter] = useState(false);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const getLayoutPhotos = () => {
@@ -198,8 +200,27 @@ export const LayoutPreviewModal = ({ isOpen, onClose, layout, photos }: LayoutPr
               <p className="text-center text-sm text-primary font-medium">
                 📹 Ready for video/reel export • {layoutPhotos.length} photos in sequence
               </p>
+              
+              {/* Video Export Button */}
+              <div className="flex justify-center">
+                <Button 
+                  onClick={() => setShowVideoExporter(true)}
+                  className="gradient-primary"
+                  size="lg"
+                >
+                  <Video className="mr-2 h-5 w-5" />
+                  Create MP4 Video
+                </Button>
+              </div>
             </div>
           )}
+
+          {/* Video Exporter Modal */}
+          <VideoExporter
+            isOpen={showVideoExporter}
+            onClose={() => setShowVideoExporter(false)}
+            photos={layoutPhotos}
+          />
 
           {/* Carousel with Navigation */}
           {isCarousel && !isBeforeAfter && !isSlideshow && (
