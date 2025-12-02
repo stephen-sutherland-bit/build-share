@@ -39,7 +39,11 @@ export const ContentPreview = ({ content, onSave, currentProjectName, isSaved }:
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState(0);
   const [selectedLayout, setSelectedLayout] = useState<typeof content.layouts[0] | null>(null);
+  const [selectedLayoutIndex, setSelectedLayoutIndex] = useState<number>(-1);
   const [isExporting, setIsExporting] = useState(false);
+  
+  // Track edited layouts
+  const [editedLayouts, setEditedLayouts] = useState(content.layouts);
   
   // Track reordered photos with their original indices
   const [orderedPhotos, setOrderedPhotos] = useState(() => 
@@ -50,6 +54,11 @@ export const ContentPreview = ({ content, onSave, currentProjectName, isSaved }:
   useEffect(() => {
     setOrderedPhotos(content.photos.map((photo, idx) => ({ ...photo, id: `photo-${idx}`, originalIndex: idx })));
   }, [content.photos]);
+
+  // Update layouts when content changes
+  useEffect(() => {
+    setEditedLayouts(content.layouts);
+  }, [content.layouts]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -79,6 +88,15 @@ export const ContentPreview = ({ content, onSave, currentProjectName, isSaved }:
   const resetPhotoOrder = () => {
     setOrderedPhotos(content.photos.map((photo, idx) => ({ ...photo, id: `photo-${idx}`, originalIndex: idx })));
     toast.success("Photo order reset to AI-suggested order");
+  };
+
+  const handleUpdateLayout = (updatedLayout: typeof content.layouts[0]) => {
+    if (selectedLayoutIndex >= 0) {
+      const newLayouts = [...editedLayouts];
+      newLayouts[selectedLayoutIndex] = updatedLayout;
+      setEditedLayouts(newLayouts);
+      setSelectedLayout(updatedLayout);
+    }
   };
 
   const hasReorderedPhotos = orderedPhotos.some((photo, idx) => photo.originalIndex !== idx);
@@ -312,7 +330,7 @@ export const ContentPreview = ({ content, onSave, currentProjectName, isSaved }:
             
             <TabsContent value="layouts" className="space-y-4 mt-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {content.layouts.map((layout, idx) => {
+                {editedLayouts.map((layout, idx) => {
                   const layoutType = layout.type.toLowerCase();
                   const isBeforeAfter = layoutType.includes('before') || layoutType.includes('after');
                   const isCarousel = layoutType.includes('carousel');
@@ -328,7 +346,10 @@ export const ContentPreview = ({ content, onSave, currentProjectName, isSaved }:
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: idx * 0.1 }}
                       whileHover={{ scale: 1.01 }}
-                      onClick={() => setSelectedLayout(layout)}
+                      onClick={() => {
+                        setSelectedLayout(layout);
+                        setSelectedLayoutIndex(idx);
+                      }}
                     >
                       <div className="space-y-1.5">
                         <div className="flex items-center justify-between">
@@ -530,9 +551,13 @@ export const ContentPreview = ({ content, onSave, currentProjectName, isSaved }:
       {selectedLayout && (
         <LayoutPreviewModal
           isOpen={!!selectedLayout}
-          onClose={() => setSelectedLayout(null)}
+          onClose={() => {
+            setSelectedLayout(null);
+            setSelectedLayoutIndex(-1);
+          }}
           layout={selectedLayout}
           photos={orderedPhotos}
+          onUpdateLayout={handleUpdateLayout}
         />
       )}
     </>
