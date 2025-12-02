@@ -42,8 +42,26 @@ export const ContentPreview = ({ content, onSave, currentProjectName, isSaved }:
   const [selectedLayoutIndex, setSelectedLayoutIndex] = useState<number>(-1);
   const [isExporting, setIsExporting] = useState(false);
   
-  // Track edited layouts
-  const [editedLayouts, setEditedLayouts] = useState(content.layouts);
+  // Track edited layouts - deduplicated to one per type
+  const deduplicateLayouts = (layouts: typeof content.layouts) => {
+    const seenTypes = new Set<string>();
+    return layouts.filter(layout => {
+      const normalizedType = layout.type.toLowerCase().replace(/\s+/g, '');
+      // Normalize type names to group similar layouts
+      let typeKey = normalizedType;
+      if (normalizedType.includes('before') || normalizedType.includes('after')) typeKey = 'beforeafter';
+      else if (normalizedType.includes('carousel')) typeKey = 'carousel';
+      else if (normalizedType.includes('grid')) typeKey = 'grid';
+      else if (normalizedType.includes('highlight') || normalizedType.includes('single')) typeKey = 'highlight';
+      else if (normalizedType.includes('slideshow')) typeKey = 'slideshow';
+      
+      if (seenTypes.has(typeKey)) return false;
+      seenTypes.add(typeKey);
+      return true;
+    });
+  };
+  
+  const [editedLayouts, setEditedLayouts] = useState(() => deduplicateLayouts(content.layouts));
   
   // Track reordered photos with their original indices
   const [orderedPhotos, setOrderedPhotos] = useState(() => 
@@ -57,7 +75,7 @@ export const ContentPreview = ({ content, onSave, currentProjectName, isSaved }:
 
   // Update layouts when content changes
   useEffect(() => {
-    setEditedLayouts(content.layouts);
+    setEditedLayouts(deduplicateLayouts(content.layouts));
   }, [content.layouts]);
 
   const sensors = useSensors(
