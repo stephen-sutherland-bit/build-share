@@ -95,7 +95,7 @@ const Auth = () => {
                 <Input
                   id="reset-email"
                   type="email"
-                  placeholder="stephen@westernmaintenance.com.au"
+                  placeholder=""
                   value={resetEmail}
                   onChange={(e) => setResetEmail(e.target.value)}
                   required
@@ -131,7 +131,7 @@ const Auth = () => {
                 <Input
                   id="email"
                   type="email"
-                  placeholder="stephen@westernmaintenance.com.au"
+                  placeholder=""
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
@@ -152,7 +152,7 @@ const Auth = () => {
                 <Input
                   id="password"
                   type="password"
-                  placeholder="••••••••"
+                  placeholder=""
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
