@@ -432,26 +432,32 @@ export const LayoutPreviewModal = ({ isOpen, onClose, layout, photos, onUpdateLa
             </div>
           )}
 
-          {/* Add Photos Section */}
-          {onUpdateLayout && !isBeforeAfter && availablePhotos.length > 0 && (
+          {/* Add Photos Section - Always show when editing is possible */}
+          {onUpdateLayout && !isBeforeAfter && (
             <div className="mt-6 pt-6 border-t border-border">
               <div className="flex items-center justify-between mb-4">
                 <div>
                   <h3 className="text-sm font-semibold">Add Photos</h3>
-                  <p className="text-xs text-muted-foreground">{availablePhotos.length} photos available to add</p>
+                  <p className="text-xs text-muted-foreground">
+                    {availablePhotos.length > 0 
+                      ? `${availablePhotos.length} photos available to add`
+                      : 'All photos added to layout'}
+                  </p>
                 </div>
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  onClick={() => setShowAddPhotos(!showAddPhotos)}
-                >
-                  <Plus className="mr-2 h-4 w-4" />
-                  {showAddPhotos ? 'Hide' : 'Show'} Photos
-                </Button>
+                {availablePhotos.length > 0 && (
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => setShowAddPhotos(!showAddPhotos)}
+                  >
+                    <Plus className="mr-2 h-4 w-4" />
+                    {showAddPhotos ? 'Hide' : 'Show'} Photos
+                  </Button>
+                )}
               </div>
               
               <AnimatePresence>
-                {showAddPhotos && (
+                {showAddPhotos && availablePhotos.length > 0 && (
                   <motion.div
                     initial={{ opacity: 0, height: 0 }}
                     animate={{ opacity: 1, height: 'auto' }}
