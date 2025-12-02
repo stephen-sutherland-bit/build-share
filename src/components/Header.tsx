@@ -1,6 +1,6 @@
-import { Building2, Settings, LogOut, ShieldCheck, Shield, Moon, Sun } from "lucide-react";
+import { Building2, Settings, LogOut, ShieldCheck, Shield, Moon, Sun, Home } from "lucide-react";
 import { useTheme } from "next-themes";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -16,6 +16,8 @@ import { useAuth } from "@/hooks/useAuth";
 export const Header = () => {
   const { user, role, signOut } = useAuth();
   const { theme, setTheme } = useTheme();
+  const location = useLocation();
+  const isHomePage = location.pathname === "/";
 
   const getInitials = (email: string) => {
     return email.charAt(0).toUpperCase();
@@ -43,6 +45,21 @@ export const Header = () => {
         </Link>
 
         <div className="flex items-center gap-3">
+          {/* Home Button - only show when not on home page */}
+          {!isHomePage && (
+            <Button
+              variant="ghost"
+              size="icon"
+              asChild
+              className="h-10 w-10 rounded-full ring-1 ring-border/50 hover:ring-primary/50 hover:bg-muted transition-smooth"
+            >
+              <Link to="/">
+                <Home className="h-[1.2rem] w-[1.2rem]" />
+                <span className="sr-only">Go to home</span>
+              </Link>
+            </Button>
+          )}
+
           {/* Theme Toggle */}
           <Button
             variant="ghost"
