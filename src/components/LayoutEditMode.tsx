@@ -1,11 +1,9 @@
-import { useState, useCallback } from "react";
+import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   Check, 
   Sparkles, 
   Loader2, 
-  ChevronUp,
-  ChevronDown,
   ChevronLeft,
   ChevronRight,
   Columns2,
@@ -15,7 +13,9 @@ import {
   Layers,
   LayoutGrid,
   Rows3,
-  X
+  X,
+  Plus,
+  GripVertical
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -82,20 +82,19 @@ export const LayoutEditMode = ({ layout, photos, onUpdateLayout, companyDetails 
   
   const [isRegenerating, setIsRegenerating] = useState(false);
   const [aiSuggestions, setAiSuggestions] = useState<Layout[] | null>(null);
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
 
   const currentLayoutConfig = LAYOUT_TYPES.find(l => l.type === selectedLayoutType);
 
   const togglePhotoSelection = (photoIndex: number) => {
     setSelectedPhotoIndices(prev => {
       if (prev.includes(photoIndex)) {
-        // Don't allow removing if at minimum
         if (currentLayoutConfig && prev.length <= currentLayoutConfig.minPhotos) {
           toast.error(`${selectedLayoutType} requires at least ${currentLayoutConfig.minPhotos} photo${currentLayoutConfig.minPhotos > 1 ? 's' : ''}`);
           return prev;
         }
         return prev.filter(i => i !== photoIndex);
       } else {
-        // Don't allow adding if at maximum
         if (currentLayoutConfig && prev.length >= currentLayoutConfig.maxPhotos) {
           toast.error(`${selectedLayoutType} allows maximum ${currentLayoutConfig.maxPhotos} photos`);
           return prev;
@@ -103,10 +102,6 @@ export const LayoutEditMode = ({ layout, photos, onUpdateLayout, companyDetails 
         return [...prev, photoIndex];
       }
     });
-  };
-
-  const handleReorder = (newOrder: number[]) => {
-    setSelectedPhotoIndices(newOrder);
   };
 
   const movePhoto = (currentIndex: number, direction: 'left' | 'right') => {
@@ -118,6 +113,26 @@ export const LayoutEditMode = ({ layout, photos, onUpdateLayout, companyDetails 
     newOrder[currentIndex] = newOrder[newIndex];
     newOrder[newIndex] = temp;
     setSelectedPhotoIndices(newOrder);
+  };
+
+  const handleDragStart = (index: number) => {
+    setDraggedIndex(index);
+  };
+
+  const handleDragOver = (e: React.DragEvent, targetIndex: number) => {
+    e.preventDefault();
+    if (draggedIndex === null || draggedIndex === targetIndex) return;
+    
+    const newOrder = [...selectedPhotoIndices];
+    const draggedItem = newOrder[draggedIndex];
+    newOrder.splice(draggedIndex, 1);
+    newOrder.splice(targetIndex, 0, draggedItem);
+    setSelectedPhotoIndices(newOrder);
+    setDraggedIndex(targetIndex);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedIndex(null);
   };
 
   const applyChanges = () => {
@@ -162,7 +177,6 @@ export const LayoutEditMode = ({ layout, photos, onUpdateLayout, companyDetails 
       if (error) throw error;
 
       if (data?.layouts && data.layouts.length > 0) {
-        // Map AI suggestions back to actual photo indices
         const mappedLayouts = data.layouts.map((suggestion: any) => ({
           type: suggestion.type,
           description: suggestion.description,
@@ -196,219 +210,345 @@ export const LayoutEditMode = ({ layout, photos, onUpdateLayout, companyDetails 
     toast.success(`Applied ${suggestion.type} layout!`);
   };
 
-  return (
-    <div className="space-y-6">
-      {/* Layout Type Selector */}
-      <div>
-        <h4 className="text-sm font-semibold mb-3">Layout Type</h4>
-        <div className="grid grid-cols-4 gap-2">
-          {LAYOUT_TYPES.map((layoutConfig) => {
-            const Icon = layoutConfig.icon;
-            const isSelected = selectedLayoutType === layoutConfig.type;
-            const photoCountValid = selectedPhotoIndices.length >= layoutConfig.minPhotos && 
-                                   selectedPhotoIndices.length <= layoutConfig.maxPhotos;
-            
-            return (
-              <button
-                key={layoutConfig.type}
-                onClick={() => setSelectedLayoutType(layoutConfig.type)}
-                className={`p-3 rounded-xl border-2 transition-all text-left ${
-                  isSelected 
-                    ? 'border-primary bg-primary/10' 
-                    : 'border-border hover:border-primary/40'
-                } ${!photoCountValid && !isSelected ? 'opacity-50' : ''}`}
-              >
-                <Icon className={`h-5 w-5 mb-1 ${isSelected ? 'text-primary' : 'text-muted-foreground'}`} />
-                <div className="text-xs font-medium">{layoutConfig.type}</div>
-                <div className="text-[10px] text-muted-foreground">
-                  {layoutConfig.minPhotos === layoutConfig.maxPhotos 
-                    ? `${layoutConfig.minPhotos} photo${layoutConfig.minPhotos > 1 ? 's' : ''}`
-                    : `${layoutConfig.minPhotos}-${layoutConfig.maxPhotos} photos`
-                  }
-                </div>
-              </button>
-            );
-          })}
+  // Render the live preview based on layout type
+  const renderLivePreview = () => {
+    const selectedPhotos = selectedPhotoIndices.map(idx => photos[idx]).filter(Boolean);
+    if (selectedPhotos.length === 0) {
+      return (
+        <div className="flex items-center justify-center h-full text-muted-foreground">
+          <p>Select photos to see preview</p>
         </div>
-      </div>
+      );
+    }
 
-      {/* Photo Selection Grid */}
-      <div>
-        <div className="flex items-center justify-between mb-3">
-          <div>
-            <h4 className="text-sm font-semibold">Select & Reorder Photos</h4>
-            <p className="text-xs text-muted-foreground">
-              {selectedPhotoIndices.length} selected • Drag to reorder
-            </p>
+    const type = selectedLayoutType.toLowerCase();
+
+    // Before/After
+    if (type.includes('before') || type.includes('after')) {
+      return (
+        <div className="flex gap-1 h-full">
+          <div className="flex-1 relative overflow-hidden rounded-lg">
+            {selectedPhotos[0] && (
+              <>
+                <img src={selectedPhotos[0].url} alt="Before" className="w-full h-full object-cover" />
+                <span className="absolute bottom-2 left-2 bg-black/70 text-white text-xs px-2 py-1 rounded">BEFORE</span>
+              </>
+            )}
           </div>
-          <Badge variant={
-            currentLayoutConfig && 
-            selectedPhotoIndices.length >= currentLayoutConfig.minPhotos && 
-            selectedPhotoIndices.length <= currentLayoutConfig.maxPhotos 
-              ? 'default' 
-              : 'destructive'
-          }>
-            {currentLayoutConfig?.minPhotos === currentLayoutConfig?.maxPhotos 
-              ? `Need ${currentLayoutConfig?.minPhotos}`
-              : `${currentLayoutConfig?.minPhotos}-${currentLayoutConfig?.maxPhotos} needed`
-            }
-          </Badge>
+          <div className="flex-1 relative overflow-hidden rounded-lg">
+            {selectedPhotos[1] && (
+              <>
+                <img src={selectedPhotos[1].url} alt="After" className="w-full h-full object-cover" />
+                <span className="absolute bottom-2 right-2 bg-primary text-primary-foreground text-xs px-2 py-1 rounded">AFTER</span>
+              </>
+            )}
+          </div>
         </div>
+      );
+    }
 
-        {/* Selected Photos - Reorderable with arrows */}
-        {selectedPhotoIndices.length > 0 && (
-          <div className="mb-4">
-            <p className="text-xs text-muted-foreground mb-2">Selected photos (use arrows to reorder):</p>
-            <div className="flex gap-1 flex-wrap p-3 bg-primary/5 rounded-xl min-h-[100px]">
-              {selectedPhotoIndices.map((photoIdx, orderIdx) => (
-                <motion.div
-                  key={`${photoIdx}-${orderIdx}`}
-                  layout
-                  initial={{ opacity: 0, scale: 0.8 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  className="relative group"
-                >
-                  <div className="relative w-20 h-20 rounded-lg overflow-hidden border-2 border-primary shadow-md">
-                    <img 
-                      src={photos[photoIdx]?.url} 
-                      alt="" 
-                      className="w-full h-full object-cover"
-                    />
-                    {/* Position number */}
-                    <div className="absolute top-0 left-0 w-6 h-6 bg-primary text-primary-foreground text-xs font-bold flex items-center justify-center rounded-br-lg">
-                      {orderIdx + 1}
-                    </div>
-                    {/* Remove button */}
-                    <button
-                      onClick={() => togglePhotoSelection(photoIdx)}
-                      className="absolute top-0 right-0 w-5 h-5 bg-destructive text-destructive-foreground rounded-bl-lg flex items-center justify-center hover:bg-destructive/80 transition-colors"
-                    >
-                      <X className="h-3 w-3" />
-                    </button>
-                  </div>
-                  {/* Reorder controls */}
-                  <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button
-                      onClick={() => movePhoto(orderIdx, 'left')}
-                      disabled={orderIdx === 0}
-                      className="w-5 h-5 bg-background border border-border rounded flex items-center justify-center hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed"
-                    >
-                      <ChevronLeft className="h-3 w-3" />
-                    </button>
-                    <button
-                      onClick={() => movePhoto(orderIdx, 'right')}
-                      disabled={orderIdx === selectedPhotoIndices.length - 1}
-                      className="w-5 h-5 bg-background border border-border rounded flex items-center justify-center hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed"
-                    >
-                      <ChevronRight className="h-3 w-3" />
-                    </button>
-                  </div>
-                </motion.div>
-              ))}
+    // Highlight / Story
+    if (type.includes('highlight') || type.includes('story')) {
+      return (
+        <div className="relative h-full rounded-lg overflow-hidden">
+          <img src={selectedPhotos[0]?.url} alt="Highlight" className="w-full h-full object-cover" />
+        </div>
+      );
+    }
+
+    // Triptych
+    if (type.includes('triptych')) {
+      return (
+        <div className="flex gap-1 h-full">
+          {selectedPhotos.slice(0, 3).map((photo, i) => (
+            <div key={i} className="flex-1 relative overflow-hidden rounded-lg">
+              <img src={photo.url} alt="" className="w-full h-full object-cover" />
+              <span className="absolute bottom-1 left-1 bg-black/60 text-white text-[10px] px-1 rounded">{i + 1}</span>
             </div>
-          </div>
-        )}
+          ))}
+        </div>
+      );
+    }
 
-        {/* All Photos Grid */}
-        <p className="text-xs text-muted-foreground mb-2">All photos (click to select/deselect):</p>
-        <div className="grid grid-cols-6 sm:grid-cols-8 md:grid-cols-10 gap-2 max-h-48 overflow-y-auto p-2 bg-muted/30 rounded-xl">
-          {photos.map((photo, idx) => {
-            const isSelected = selectedPhotoIndices.includes(idx);
-            const orderInSelection = selectedPhotoIndices.indexOf(idx);
-            
-            return (
-              <motion.button
-                key={idx}
-                onClick={() => togglePhotoSelection(idx)}
-                className={`relative aspect-square rounded-lg overflow-hidden border-2 transition-all ${
-                  isSelected 
-                    ? 'border-primary ring-2 ring-primary/30' 
-                    : 'border-transparent hover:border-primary/40'
-                }`}
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
+    // Collage
+    if (type.includes('collage')) {
+      return (
+        <div className="grid grid-cols-3 grid-rows-2 gap-1 h-full">
+          {/* Hero photo */}
+          <div className="col-span-2 row-span-2 relative overflow-hidden rounded-lg">
+            <img src={selectedPhotos[0]?.url} alt="Main" className="w-full h-full object-cover" />
+            <span className="absolute bottom-1 left-1 bg-black/60 text-white text-[10px] px-1 rounded">1 (Hero)</span>
+          </div>
+          {/* Right column */}
+          <div className="relative overflow-hidden rounded-lg">
+            {selectedPhotos[1] && <img src={selectedPhotos[1].url} alt="" className="w-full h-full object-cover" />}
+            <span className="absolute bottom-1 left-1 bg-black/60 text-white text-[10px] px-1 rounded">2</span>
+          </div>
+          <div className="relative overflow-hidden rounded-lg">
+            {selectedPhotos[2] && <img src={selectedPhotos[2].url} alt="" className="w-full h-full object-cover" />}
+            <span className="absolute bottom-1 left-1 bg-black/60 text-white text-[10px] px-1 rounded">3</span>
+          </div>
+        </div>
+      );
+    }
+
+    // Grid
+    if (type.includes('grid')) {
+      const cols = selectedPhotos.length <= 4 ? 2 : 3;
+      return (
+        <div className={`grid gap-1 h-full`} style={{ gridTemplateColumns: `repeat(${cols}, 1fr)` }}>
+          {selectedPhotos.slice(0, 9).map((photo, i) => (
+            <div key={i} className="relative overflow-hidden rounded-lg aspect-square">
+              <img src={photo.url} alt="" className="w-full h-full object-cover" />
+              <span className="absolute bottom-1 left-1 bg-black/60 text-white text-[10px] px-1 rounded">{i + 1}</span>
+            </div>
+          ))}
+        </div>
+      );
+    }
+
+    // Carousel / Slideshow
+    return (
+      <div className="h-full flex flex-col gap-2">
+        {/* Main preview */}
+        <div className="flex-1 relative overflow-hidden rounded-lg">
+          <img src={selectedPhotos[0]?.url} alt="" className="w-full h-full object-cover" />
+          <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1">
+            {selectedPhotos.slice(0, 8).map((_, i) => (
+              <div key={i} className={`w-2 h-2 rounded-full ${i === 0 ? 'bg-white' : 'bg-white/50'}`} />
+            ))}
+            {selectedPhotos.length > 8 && <span className="text-white text-xs">+{selectedPhotos.length - 8}</span>}
+          </div>
+        </div>
+        {/* Thumbnail strip */}
+        <div className="flex gap-1 h-12 overflow-x-auto">
+          {selectedPhotos.slice(0, 10).map((photo, i) => (
+            <div key={i} className={`relative h-full aspect-square flex-shrink-0 rounded overflow-hidden border-2 ${i === 0 ? 'border-primary' : 'border-transparent'}`}>
+              <img src={photo.url} alt="" className="w-full h-full object-cover" />
+            </div>
+          ))}
+          {selectedPhotos.length > 10 && (
+            <div className="h-full aspect-square flex-shrink-0 rounded bg-muted flex items-center justify-center text-xs text-muted-foreground">
+              +{selectedPhotos.length - 10}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  const availablePhotos = photos.filter((_, idx) => !selectedPhotoIndices.includes(idx));
+
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      {/* Left Column: Live Preview */}
+      <div className="order-2 lg:order-1">
+        <div className="flex items-center justify-between mb-3">
+          <h4 className="text-sm font-semibold">Live Preview</h4>
+          <Badge variant="outline">{selectedLayoutType}</Badge>
+        </div>
+        <div className="aspect-square bg-muted/30 rounded-xl p-2 border border-border">
+          {renderLivePreview()}
+        </div>
+        
+        {/* Selected photos strip with drag reorder */}
+        <div className="mt-4">
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-xs font-medium">Photo Order (drag to reorder)</p>
+            <Badge variant={
+              currentLayoutConfig && 
+              selectedPhotoIndices.length >= currentLayoutConfig.minPhotos && 
+              selectedPhotoIndices.length <= currentLayoutConfig.maxPhotos 
+                ? 'default' 
+                : 'destructive'
+            } className="text-xs">
+              {selectedPhotoIndices.length}/{currentLayoutConfig?.maxPhotos || '?'}
+            </Badge>
+          </div>
+          <div className="flex gap-2 overflow-x-auto pb-2 p-2 bg-muted/20 rounded-lg min-h-[80px]">
+            {selectedPhotoIndices.map((photoIdx, orderIdx) => (
+              <div
+                key={`${photoIdx}-${orderIdx}`}
+                draggable
+                onDragStart={() => handleDragStart(orderIdx)}
+                onDragOver={(e) => handleDragOver(e, orderIdx)}
+                onDragEnd={handleDragEnd}
+                className={`relative flex-shrink-0 group cursor-grab active:cursor-grabbing ${draggedIndex === orderIdx ? 'opacity-50' : ''}`}
               >
-                <img src={photo.url} alt="" className="w-full h-full object-cover" />
-                {isSelected && (
-                  <div className="absolute inset-0 bg-primary/20 flex items-center justify-center">
-                    <div className="w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold">
-                      {orderInSelection + 1}
-                    </div>
+                <div className="w-16 h-16 rounded-lg overflow-hidden border-2 border-primary shadow-md relative">
+                  <img src={photos[photoIdx]?.url} alt="" className="w-full h-full object-cover" />
+                  <div className="absolute top-0 left-0 w-5 h-5 bg-primary text-primary-foreground text-[10px] font-bold flex items-center justify-center rounded-br">
+                    {orderIdx + 1}
                   </div>
-                )}
-                <span className="absolute bottom-0 left-0 right-0 text-[9px] bg-black/60 text-white text-center">
-                  #{idx + 1}
-                </span>
-              </motion.button>
-            );
-          })}
+                  <button
+                    onClick={() => togglePhotoSelection(photoIdx)}
+                    className="absolute top-0 right-0 w-4 h-4 bg-destructive text-destructive-foreground rounded-bl flex items-center justify-center hover:bg-destructive/80"
+                  >
+                    <X className="h-2.5 w-2.5" />
+                  </button>
+                  <div className="absolute bottom-0 inset-x-0 h-4 bg-gradient-to-t from-black/60 to-transparent flex items-end justify-center pb-0.5">
+                    <GripVertical className="h-3 w-3 text-white/70" />
+                  </div>
+                </div>
+                {/* Arrow controls on hover */}
+                <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                  <button
+                    onClick={() => movePhoto(orderIdx, 'left')}
+                    disabled={orderIdx === 0}
+                    className="w-4 h-4 bg-background border border-border rounded flex items-center justify-center hover:bg-muted disabled:opacity-30"
+                  >
+                    <ChevronLeft className="h-2.5 w-2.5" />
+                  </button>
+                  <button
+                    onClick={() => movePhoto(orderIdx, 'right')}
+                    disabled={orderIdx === selectedPhotoIndices.length - 1}
+                    className="w-4 h-4 bg-background border border-border rounded flex items-center justify-center hover:bg-muted disabled:opacity-30"
+                  >
+                    <ChevronRight className="h-2.5 w-2.5" />
+                  </button>
+                </div>
+              </div>
+            ))}
+            {selectedPhotoIndices.length === 0 && (
+              <div className="flex-1 flex items-center justify-center text-muted-foreground text-sm">
+                Click photos to add
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
-      {/* AI Suggestions */}
-      <AnimatePresence>
-        {aiSuggestions && aiSuggestions.length > 0 && (
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            className="p-4 bg-primary/5 rounded-xl border border-primary/20"
-          >
-            <h4 className="text-sm font-semibold mb-3 flex items-center gap-2">
-              <Sparkles className="h-4 w-4 text-amber-500" />
-              AI Suggestions
-            </h4>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              {aiSuggestions.map((suggestion, idx) => (
+      {/* Right Column: Controls */}
+      <div className="order-1 lg:order-2 space-y-4">
+        {/* Layout Type Selector */}
+        <div>
+          <h4 className="text-sm font-semibold mb-2">Layout Type</h4>
+          <div className="grid grid-cols-4 gap-1.5">
+            {LAYOUT_TYPES.map((layoutConfig) => {
+              const Icon = layoutConfig.icon;
+              const isSelected = selectedLayoutType === layoutConfig.type;
+              const photoCountValid = selectedPhotoIndices.length >= layoutConfig.minPhotos && 
+                                     selectedPhotoIndices.length <= layoutConfig.maxPhotos;
+              
+              return (
                 <button
-                  key={idx}
-                  onClick={() => applySuggestion(suggestion)}
-                  className="p-3 bg-background rounded-lg border border-border hover:border-primary/40 transition-all text-left"
+                  key={layoutConfig.type}
+                  onClick={() => setSelectedLayoutType(layoutConfig.type)}
+                  className={`p-2 rounded-lg border transition-all text-left ${
+                    isSelected 
+                      ? 'border-primary bg-primary/10' 
+                      : 'border-border hover:border-primary/40'
+                  } ${!photoCountValid && !isSelected ? 'opacity-50' : ''}`}
                 >
-                  <div className="font-medium text-sm">{suggestion.type}</div>
-                  <div className="text-xs text-muted-foreground line-clamp-2">
-                    {suggestion.description}
+                  <Icon className={`h-4 w-4 mb-0.5 ${isSelected ? 'text-primary' : 'text-muted-foreground'}`} />
+                  <div className="text-[10px] font-medium truncate">{layoutConfig.type}</div>
+                  <div className="text-[9px] text-muted-foreground">
+                    {layoutConfig.minPhotos === layoutConfig.maxPhotos 
+                      ? `${layoutConfig.minPhotos}`
+                      : `${layoutConfig.minPhotos}-${layoutConfig.maxPhotos}`
+                    }
                   </div>
                 </button>
-              ))}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+              );
+            })}
+          </div>
+        </div>
 
-      {/* Action Buttons */}
-      <div className="flex gap-3 pt-4 border-t border-border">
-        <Button
-          variant="outline"
-          onClick={regenerateWithAI}
-          disabled={isRegenerating || selectedPhotoIndices.length === 0}
-          className="flex-1"
-        >
-          {isRegenerating ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Generating...
-            </>
-          ) : (
-            <>
-              <Sparkles className="mr-2 h-4 w-4" />
-              Regenerate with AI
-            </>
+        {/* Available Photos Grid */}
+        <div>
+          <h4 className="text-sm font-semibold mb-2">Add Photos</h4>
+          <div className="grid grid-cols-5 sm:grid-cols-6 gap-1.5 max-h-40 overflow-y-auto p-2 bg-muted/20 rounded-lg">
+            {availablePhotos.length === 0 ? (
+              <p className="col-span-full text-xs text-muted-foreground text-center py-4">All photos selected</p>
+            ) : (
+              photos.map((photo, idx) => {
+                const isSelected = selectedPhotoIndices.includes(idx);
+                if (isSelected) return null;
+                
+                return (
+                  <motion.button
+                    key={idx}
+                    onClick={() => togglePhotoSelection(idx)}
+                    className="relative aspect-square rounded-lg overflow-hidden border-2 border-transparent hover:border-primary/60 transition-all group"
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                  >
+                    <img src={photo.url} alt="" className="w-full h-full object-cover" />
+                    <div className="absolute inset-0 bg-primary/0 group-hover:bg-primary/20 transition-colors flex items-center justify-center">
+                      <Plus className="h-5 w-5 text-white opacity-0 group-hover:opacity-100 drop-shadow-lg" />
+                    </div>
+                    <span className="absolute bottom-0 left-0 right-0 text-[8px] bg-black/60 text-white text-center">
+                      #{idx + 1}
+                    </span>
+                  </motion.button>
+                );
+              })
+            )}
+          </div>
+        </div>
+
+        {/* AI Suggestions */}
+        <AnimatePresence>
+          {aiSuggestions && aiSuggestions.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="p-3 bg-amber-500/10 rounded-lg border border-amber-500/20"
+            >
+              <h4 className="text-xs font-semibold mb-2 flex items-center gap-1">
+                <Sparkles className="h-3 w-3 text-amber-500" />
+                AI Suggestions
+              </h4>
+              <div className="grid grid-cols-1 gap-2">
+                {aiSuggestions.map((suggestion, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => applySuggestion(suggestion)}
+                    className="p-2 bg-background rounded border border-border hover:border-primary/40 transition-all text-left"
+                  >
+                    <div className="font-medium text-xs">{suggestion.type}</div>
+                    <div className="text-[10px] text-muted-foreground line-clamp-1">
+                      {suggestion.description}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </motion.div>
           )}
-        </Button>
-        
-        <Button
-          onClick={applyChanges}
-          disabled={
-            !currentLayoutConfig ||
-            selectedPhotoIndices.length < currentLayoutConfig.minPhotos ||
-            selectedPhotoIndices.length > currentLayoutConfig.maxPhotos
-          }
-          className="flex-1 gradient-primary"
-        >
-          <Check className="mr-2 h-4 w-4" />
-          Apply Changes
-        </Button>
+        </AnimatePresence>
+
+        {/* Action Buttons */}
+        <div className="flex gap-2 pt-3 border-t border-border">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={regenerateWithAI}
+            disabled={isRegenerating || selectedPhotoIndices.length === 0}
+            className="flex-1"
+          >
+            {isRegenerating ? (
+              <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Sparkles className="mr-1.5 h-3.5 w-3.5" />
+            )}
+            {isRegenerating ? 'Generating...' : 'AI Suggest'}
+          </Button>
+          
+          <Button
+            size="sm"
+            onClick={applyChanges}
+            disabled={
+              !currentLayoutConfig ||
+              selectedPhotoIndices.length < currentLayoutConfig.minPhotos ||
+              selectedPhotoIndices.length > currentLayoutConfig.maxPhotos
+            }
+            className="flex-1 gradient-primary"
+          >
+            <Check className="mr-1.5 h-3.5 w-3.5" />
+            Apply
+          </Button>
+        </div>
       </div>
     </div>
   );
