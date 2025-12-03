@@ -184,20 +184,19 @@ export const LayoutCard = ({ layout, photos, index, onClick }: LayoutCardProps) 
           />
         )}
 
-        {/* Collage Preview - Clean Pinterest-style layout */}
+        {/* Collage Preview - Clean masonry-style layout */}
         {isCollage && (
-          <div className="absolute inset-2 flex gap-1.5 rounded-lg overflow-hidden">
-            {/* Main hero photo - takes 60% width */}
-            <div className="w-[60%] relative overflow-hidden rounded-lg">
+          <div className="absolute inset-0 grid grid-cols-3 grid-rows-2 gap-0.5 bg-muted/20">
+            {/* Hero photo - spans 2 columns and 2 rows */}
+            <div className="col-span-2 row-span-2 relative overflow-hidden">
               <img src={photos[photoIndices[0]]?.url} alt="Main" className="w-full h-full object-cover" />
             </div>
-            {/* Right column - 3 stacked photos */}
-            <div className="w-[40%] flex flex-col gap-1.5">
-              {photoIndices.slice(1, 4).map((idx, i) => (
-                <div key={i} className="flex-1 relative overflow-hidden rounded-lg">
-                  <img src={photos[idx]?.url} alt={`Collage ${i + 2}`} className="w-full h-full object-cover" />
-                </div>
-              ))}
+            {/* Right column - 2 stacked photos */}
+            <div className="relative overflow-hidden">
+              <img src={photos[photoIndices[1]]?.url} alt="Detail 1" className="w-full h-full object-cover" />
+            </div>
+            <div className="relative overflow-hidden">
+              <img src={photos[photoIndices[2] ?? photoIndices[1]]?.url} alt="Detail 2" className="w-full h-full object-cover" />
             </div>
           </div>
         )}
