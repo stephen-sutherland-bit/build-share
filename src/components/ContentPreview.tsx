@@ -5,8 +5,8 @@ import { arrayMove, SortableContext, sortableKeyboardCoordinates, rectSortingStr
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Share2, Download, Copy, Instagram, Linkedin, Facebook, Twitter, ChevronDown, RotateCcw, Save, CheckCircle, LayoutGrid, Sparkles } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
+import { Share2, Download, Copy, Instagram, Linkedin, Facebook, Twitter, ChevronDown, RotateCcw, Save, CheckCircle, LayoutGrid, Sparkles, Send } from "lucide-react";
 import { toast } from "sonner";
 import JSZip from "jszip";
 import { saveAs } from "file-saver";
@@ -14,6 +14,7 @@ import { PhotoLightbox } from "./PhotoLightbox";
 import { LayoutPreviewModal } from "./LayoutPreviewModal";
 import { SortablePhoto } from "./SortablePhoto";
 import { LayoutCard } from "./LayoutCard";
+import { PostBuilder } from "./PostBuilder";
 
 interface ProcessedContent {
   photos: Array<{ url: string; timestamp?: string }>;
@@ -42,6 +43,7 @@ export const ContentPreview = ({ content, onSave, currentProjectName, isSaved }:
   const [selectedLayout, setSelectedLayout] = useState<typeof content.layouts[0] | null>(null);
   const [selectedLayoutIndex, setSelectedLayoutIndex] = useState<number>(-1);
   const [isExporting, setIsExporting] = useState(false);
+  const [postBuilderOpen, setPostBuilderOpen] = useState(false);
   
   // Track edited layouts - deduplicated to one per type
   const deduplicateLayouts = (layouts: typeof content.layouts) => {
@@ -274,6 +276,11 @@ export const ContentPreview = ({ content, onSave, currentProjectName, isSaved }:
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-48 shadow-strong border-border/50">
+                  <DropdownMenuItem onClick={() => setPostBuilderOpen(true)} className="cursor-pointer focus:bg-muted">
+                    <Send className="mr-2 h-4 w-4 text-primary" />
+                    Post Directly
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={() => copyForPlatform('instagram')} className="cursor-pointer focus:bg-muted">
                     <Instagram className="mr-2 h-4 w-4 text-pink-500" />
                     Copy for Instagram
@@ -495,6 +502,16 @@ export const ContentPreview = ({ content, onSave, currentProjectName, isSaved }:
           onUpdateLayout={handleUpdateLayout}
         />
       )}
+
+      {/* Post Builder Modal */}
+      <PostBuilder
+        isOpen={postBuilderOpen}
+        onClose={() => setPostBuilderOpen(false)}
+        photos={orderedPhotos}
+        captions={content.captions}
+        hashtags={content.hashtags}
+        layouts={editedLayouts}
+      />
     </>
   );
 };

@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Header } from "@/components/Header";
+import { SocialConnections } from "@/components/SocialConnections";
 
 interface CompanyDetails {
   name: string;
@@ -198,6 +199,11 @@ const Settings = () => {
             </form>
           </CardContent>
         </Card>
+
+        {/* Social Connections Section */}
+        <div className="mt-8">
+          <SocialConnections />
+        </div>
       </main>
     </div>
   );

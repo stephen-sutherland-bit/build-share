@@ -2,3 +2,9 @@ project_id = "uwgcqfzzaukonhxkrbtv"
 
 [functions.process-photos]
 verify_jwt = false
+
+[functions.linkedin-auth]
+verify_jwt = false
+
+[functions.linkedin-post]
+verify_jwt = false
