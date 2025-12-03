@@ -5,6 +5,113 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Layout type priorities for deduplication (higher = more preferred)
+const LAYOUT_TYPE_PRIORITY: Record<string, number> = {
+  'before-after': 10,
+  'highlight': 9,
+  'collage': 8,
+  'triptych': 7,
+  'carousel': 6,
+  'grid': 5,
+  'slideshow': 4,
+  'story': 3,
+};
+
+// Score a layout based on photo diversity and coverage
+function scoreLayout(layout: any, totalPhotos: number, chronologicalOrder: number[]): number {
+  let score = 0;
+  const indices = layout.photoIndices || 
+    (layout.beforePhotoIndex !== undefined ? [layout.beforePhotoIndex, layout.afterPhotoIndex] : []);
+  
+  if (indices.length === 0) return 0;
+  
+  // Reward using photos from different parts of the chronological order
+  const positions = indices.map((idx: number) => chronologicalOrder.indexOf(idx));
+  const validPositions = positions.filter((p: number) => p >= 0);
+  
+  if (validPositions.length > 1) {
+    const spread = Math.max(...validPositions) - Math.min(...validPositions);
+    score += (spread / totalPhotos) * 30; // Up to 30 points for spread
+  }
+  
+  // Reward variety (unique indices)
+  const uniqueIndices = new Set(indices);
+  score += uniqueIndices.size * 5;
+  
+  // For before-after, reward large gap between before and after
+  if (layout.beforePhotoIndex !== undefined && layout.afterPhotoIndex !== undefined) {
+    const beforePos = chronologicalOrder.indexOf(layout.beforePhotoIndex);
+    const afterPos = chronologicalOrder.indexOf(layout.afterPhotoIndex);
+    if (beforePos >= 0 && afterPos >= 0 && afterPos > beforePos) {
+      score += ((afterPos - beforePos) / totalPhotos) * 50; // Big reward for transformation gap
+    }
+  }
+  
+  // Reward having a description
+  if (layout.description && layout.description.length > 20) {
+    score += 10;
+  }
+  
+  return score;
+}
+
+// Deduplicate layouts - keep only the BEST version of each layout type
+function deduplicateLayouts(layouts: any[], totalPhotos: number, chronologicalOrder: number[]): any[] {
+  const layoutsByType: Record<string, any[]> = {};
+  
+  // Group layouts by normalized type
+  for (const layout of layouts) {
+    const type = layout.type?.toLowerCase().trim() || 'unknown';
+    const normalizedType = type.includes('before') || type.includes('after') ? 'before-after' :
+                          type.includes('carousel') ? 'carousel' :
+                          type.includes('grid') ? 'grid' :
+                          type.includes('highlight') || type.includes('single') ? 'highlight' :
+                          type.includes('slideshow') || type.includes('video') ? 'slideshow' :
+                          type.includes('collage') ? 'collage' :
+                          type.includes('triptych') ? 'triptych' :
+                          type.includes('story') || type.includes('vertical') ? 'story' :
+                          type;
+    
+    if (!layoutsByType[normalizedType]) {
+      layoutsByType[normalizedType] = [];
+    }
+    layoutsByType[normalizedType].push({ ...layout, type: normalizedType, _score: scoreLayout(layout, totalPhotos, chronologicalOrder) });
+  }
+  
+  // For each type, pick the best version
+  const bestLayouts: any[] = [];
+  
+  for (const [type, typeLayouts] of Object.entries(layoutsByType)) {
+    // Sort by score descending
+    typeLayouts.sort((a, b) => b._score - a._score);
+    const best = typeLayouts[0];
+    if (best) {
+      delete best._score;
+      bestLayouts.push(best);
+    }
+  }
+  
+  // Sort final layouts by priority
+  bestLayouts.sort((a, b) => {
+    const priorityA = LAYOUT_TYPE_PRIORITY[a.type] || 0;
+    const priorityB = LAYOUT_TYPE_PRIORITY[b.type] || 0;
+    return priorityB - priorityA;
+  });
+  
+  // Create smart slideshow if we have many photos
+  if (totalPhotos >= 10 && !bestLayouts.find(l => l.type === 'slideshow')) {
+    // Use chronological order for slideshow
+    const slideshowIndices = chronologicalOrder.slice(0, Math.min(totalPhotos, 30));
+    bestLayouts.push({
+      type: 'slideshow',
+      description: `Complete project journey through ${slideshowIndices.length} photos`,
+      photoIndices: slideshowIndices
+    });
+  }
+  
+  return bestLayouts;
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -353,14 +460,19 @@ Return ONLY a JSON object: {"chronologicalOrder": [array of indices 0 to ${photo
       }
     }
 
+    // Deduplicate layouts - keep only the BEST version of each layout type
+    const deduplicatedLayouts = deduplicateLayouts(adjustedLayouts, photos.length, globalChronologicalOrder);
+
     // Combine results from all batches
     const result = {
       chronologicalOrder: globalChronologicalOrder,
       captions: batchResults.flatMap(r => r.captions || []),
       hashtags: [...new Set(batchResults.flatMap(r => r.hashtags || []))],
-      layouts: adjustedLayouts,
+      layouts: deduplicatedLayouts,
       projectStatus: batchResults[0]?.projectStatus || 'in-progress'
     };
+
+    console.log(`Final result: ${result.layouts.length} deduplicated layouts from ${adjustedLayouts.length} raw layouts`);
 
     return new Response(
       JSON.stringify({
