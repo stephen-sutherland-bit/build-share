@@ -28,66 +28,55 @@ serve(async (req) => {
 
     console.log(`Regenerating layout for ${photos.length} photos, current type: ${currentLayoutType}`);
 
-    // Build the prompt for AI
+    // Don't send actual photo URLs to avoid token limits with base64 data
+    // Instead, generate smart suggestions based on photo count and current layout
     const prompt = `You are an expert social media content strategist for construction/renovation companies.
 
-Analyze these ${photos.length} construction project photos and suggest the BEST layout options for social media posting.
+Based on the following information, suggest 2-3 alternative layout options for social media posting.
 
 Company: ${companyDetails?.name || 'Construction Company'}
 Description: ${companyDetails?.description || 'Professional construction services'}
 Current layout type: ${currentLayoutType}
-Photo count: ${photoCount}
+Number of photos available: ${photoCount}
 
-Photo URLs for analysis (in order):
-${photos.map((url: string, i: number) => `${i}: ${url}`).join('\n')}
-
-Based on visual analysis of these photos, suggest 2-3 alternative layout options that would work well. Consider:
-1. Before/after transformations (if photos show different stages)
-2. Project progression storytelling
-3. Best hero shots for single image posts
-4. Visual variety and composition
-5. Platform optimization (Instagram carousel, LinkedIn single post, etc.)
+Suggest different layout types from the current one. Available layout types:
+- Before/After (exactly 2 photos - photo index 0 as before, last photo as after)
+- Carousel (2-10 photos - great for project progression)
+- Grid (2-9 photos - multi-angle showcase)
+- Slideshow (3-50 photos - video-ready sequence)
+- Highlight (1 photo - hero image)
+- Collage (3-4 photos - artistic combination)
+- Triptych (3 photos - three-panel story)
+- Story (1 photo - vertical format)
 
 For each suggestion, provide:
-- type: One of "Before/After", "Carousel", "Grid", "Slideshow", "Highlight", "Collage", "Triptych", "Story"
-- description: A compelling description (under 100 chars)
-- photoIndices: Array of indices (0-based) from the input photos array, in the order they should appear
-- For Before/After: use beforePhotoIndex and afterPhotoIndex instead of photoIndices
+- type: The layout type name exactly as listed above
+- description: A compelling description (under 100 chars) explaining why this layout works
+- photoIndices: Array of indices (0-based) in recommended order
+- For Before/After: use beforePhotoIndex (typically 0) and afterPhotoIndex (typically last photo)
 
 Return JSON format:
 {
   "layouts": [
     {
       "type": "Carousel",
-      "description": "Project progression showing renovation stages",
-      "photoIndices": [0, 2, 4, 1]
+      "description": "Showcase project progression in swipeable format",
+      "photoIndices": [0, 1, 2, 3, 4]
     },
     {
       "type": "Before/After", 
-      "description": "Dramatic transformation showcase",
+      "description": "Dramatic transformation comparison",
       "beforePhotoIndex": 0,
-      "afterPhotoIndex": 3
+      "afterPhotoIndex": ${photoCount - 1}
     }
   ]
 }
 
-Important:
-- Only suggest layout types that make sense for the photo count
-- Prioritize quality over quantity
-- Consider which photos best tell the construction story
+Rules:
+- Only suggest layouts that make sense for ${photoCount} photos
+- Don't suggest ${currentLayoutType} since that's the current type
+- Suggest diverse options (different from each other)
 - Return ONLY valid JSON, no markdown`;
-
-    // Prepare messages with images
-    const content: any[] = [{ type: "text", text: prompt }];
-    
-    // Add images (limit to first 10 to avoid token limits)
-    const photoSubset = photos.slice(0, 10);
-    for (const photoUrl of photoSubset) {
-      content.push({
-        type: "image_url",
-        image_url: { url: photoUrl }
-      });
-    }
 
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
@@ -97,7 +86,7 @@ Important:
       },
       body: JSON.stringify({
         model: 'google/gemini-2.5-flash',
-        messages: [{ role: 'user', content }],
+        messages: [{ role: 'user', content: prompt }],
       }),
     });
 

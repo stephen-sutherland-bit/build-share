@@ -1,17 +1,21 @@
 import { useState, useCallback } from "react";
-import { motion, AnimatePresence, Reorder } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { 
   Check, 
   Sparkles, 
   Loader2, 
-  GripVertical,
+  ChevronUp,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   Columns2,
   Grid2X2,
   Image as ImageIcon,
   Play,
   Layers,
   LayoutGrid,
-  Rows3
+  Rows3,
+  X
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -102,6 +106,17 @@ export const LayoutEditMode = ({ layout, photos, onUpdateLayout, companyDetails 
   };
 
   const handleReorder = (newOrder: number[]) => {
+    setSelectedPhotoIndices(newOrder);
+  };
+
+  const movePhoto = (currentIndex: number, direction: 'left' | 'right') => {
+    const newIndex = direction === 'left' ? currentIndex - 1 : currentIndex + 1;
+    if (newIndex < 0 || newIndex >= selectedPhotoIndices.length) return;
+    
+    const newOrder = [...selectedPhotoIndices];
+    const temp = newOrder[currentIndex];
+    newOrder[currentIndex] = newOrder[newIndex];
+    newOrder[newIndex] = temp;
     setSelectedPhotoIndices(newOrder);
   };
 
@@ -240,50 +255,57 @@ export const LayoutEditMode = ({ layout, photos, onUpdateLayout, companyDetails 
           </Badge>
         </div>
 
-        {/* Selected Photos - Reorderable */}
+        {/* Selected Photos - Reorderable with arrows */}
         {selectedPhotoIndices.length > 0 && (
           <div className="mb-4">
-            <p className="text-xs text-muted-foreground mb-2">Selected (drag to reorder):</p>
-            <Reorder.Group 
-              axis="x" 
-              values={selectedPhotoIndices} 
-              onReorder={handleReorder}
-              className="flex gap-2 flex-wrap p-2 bg-primary/5 rounded-xl min-h-[80px]"
-            >
+            <p className="text-xs text-muted-foreground mb-2">Selected photos (use arrows to reorder):</p>
+            <div className="flex gap-1 flex-wrap p-3 bg-primary/5 rounded-xl min-h-[100px]">
               {selectedPhotoIndices.map((photoIdx, orderIdx) => (
-                <Reorder.Item
-                  key={photoIdx}
-                  value={photoIdx}
-                  className="cursor-grab active:cursor-grabbing"
+                <motion.div
+                  key={`${photoIdx}-${orderIdx}`}
+                  layout
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="relative group"
                 >
-                  <motion.div
-                    layout
-                    className="relative w-16 h-16 rounded-lg overflow-hidden border-2 border-primary shadow-md"
-                  >
+                  <div className="relative w-20 h-20 rounded-lg overflow-hidden border-2 border-primary shadow-md">
                     <img 
                       src={photos[photoIdx]?.url} 
                       alt="" 
                       className="w-full h-full object-cover"
                     />
-                    <div className="absolute top-0 left-0 w-5 h-5 bg-primary text-primary-foreground text-[10px] font-bold flex items-center justify-center rounded-br">
+                    {/* Position number */}
+                    <div className="absolute top-0 left-0 w-6 h-6 bg-primary text-primary-foreground text-xs font-bold flex items-center justify-center rounded-br-lg">
                       {orderIdx + 1}
                     </div>
-                    <div className="absolute bottom-0 right-0 p-0.5 bg-black/50 rounded-tl">
-                      <GripVertical className="h-3 w-3 text-white" />
-                    </div>
+                    {/* Remove button */}
                     <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        togglePhotoSelection(photoIdx);
-                      }}
-                      className="absolute top-0 right-0 w-5 h-5 bg-destructive text-destructive-foreground rounded-bl text-[10px] font-bold flex items-center justify-center hover:bg-destructive/90"
+                      onClick={() => togglePhotoSelection(photoIdx)}
+                      className="absolute top-0 right-0 w-5 h-5 bg-destructive text-destructive-foreground rounded-bl-lg flex items-center justify-center hover:bg-destructive/80 transition-colors"
                     >
-                      ×
+                      <X className="h-3 w-3" />
                     </button>
-                  </motion.div>
-                </Reorder.Item>
+                  </div>
+                  {/* Reorder controls */}
+                  <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button
+                      onClick={() => movePhoto(orderIdx, 'left')}
+                      disabled={orderIdx === 0}
+                      className="w-5 h-5 bg-background border border-border rounded flex items-center justify-center hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed"
+                    >
+                      <ChevronLeft className="h-3 w-3" />
+                    </button>
+                    <button
+                      onClick={() => movePhoto(orderIdx, 'right')}
+                      disabled={orderIdx === selectedPhotoIndices.length - 1}
+                      className="w-5 h-5 bg-background border border-border rounded flex items-center justify-center hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed"
+                    >
+                      <ChevronRight className="h-3 w-3" />
+                    </button>
+                  </div>
+                </motion.div>
               ))}
-            </Reorder.Group>
+            </div>
           </div>
         )}
 
