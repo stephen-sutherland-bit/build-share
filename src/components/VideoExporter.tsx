@@ -428,6 +428,7 @@ export const VideoExporter = ({ isOpen, onClose, photos }: VideoExporterProps) =
                     onEnded={() => setIsPlaying(false)}
                     onPlay={() => setIsPlaying(true)}
                     onPause={() => setIsPlaying(false)}
+                    playsInline
                   />
                   <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
                     <Button size="sm" variant="secondary" onClick={togglePlay}>
@@ -665,10 +666,24 @@ export const VideoExporter = ({ isOpen, onClose, photos }: VideoExporterProps) =
                 ref={fullScreenVideoRef}
                 src={previewUrl}
                 className="w-full aspect-video rounded-lg shadow-2xl"
+                controls
+                controlsList="nodownload"
                 onEnded={() => setIsPlaying(false)}
                 onPlay={() => setIsPlaying(true)}
                 onPause={() => setIsPlaying(false)}
-                onClick={togglePlay}
+                onClick={(e) => {
+                  // Only toggle if not clicking on controls
+                  if ((e.target as HTMLVideoElement).tagName === 'VIDEO') {
+                    const video = e.target as HTMLVideoElement;
+                    const rect = video.getBoundingClientRect();
+                    const clickY = e.clientY - rect.top;
+                    // Don't toggle if clicking in bottom 40px (controls area)
+                    if (clickY < rect.height - 40) {
+                      togglePlay();
+                    }
+                  }
+                }}
+                playsInline
               />
               
               {/* Center play button overlay when paused */}
