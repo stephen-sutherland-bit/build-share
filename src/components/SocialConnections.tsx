@@ -49,8 +49,6 @@ export const SocialConnections = () => {
       if (code && state === 'linkedin_auth' && user) {
         setConnecting('linkedin');
         try {
-          const redirectUri = `${window.location.origin}/settings`;
-          
           const response = await fetch(
             `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/linkedin-auth?action=exchange-code`,
             {
@@ -58,7 +56,6 @@ export const SocialConnections = () => {
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
                 code,
-                redirectUri,
                 userId: user.id
               })
             }
@@ -126,15 +123,12 @@ export const SocialConnections = () => {
     setConnecting('linkedin');
 
     try {
-      const redirectUri = `${window.location.origin}/settings`;
-      
       const response = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/linkedin-auth?action=get-auth-url`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            redirectUri,
             state: 'linkedin_auth'
           })
         }
