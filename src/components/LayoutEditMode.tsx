@@ -16,7 +16,8 @@ import {
   X,
   Plus,
   GripVertical,
-  Replace
+  Replace,
+  ArrowLeftRight
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -114,6 +115,16 @@ export const LayoutEditMode = ({ layout, photos, onUpdateLayout, companyDetails 
       newOrder[slotIndex] = newPhotoIndex;
       return newOrder;
     });
+  };
+
+  const swapBeforeAfterPhotos = () => {
+    if (selectedPhotoIndices.length >= 2) {
+      setSelectedPhotoIndices(prev => [prev[1], prev[0], ...prev.slice(2)]);
+      toast.success("Swapped before and after photos");
+    }
+  };
+
+  const replacePhotoToast = (slotIndex: number) => {
     toast.success(`Replaced photo in slot ${slotIndex + 1}`);
   };
 
@@ -273,10 +284,10 @@ export const LayoutEditMode = ({ layout, photos, onUpdateLayout, companyDetails 
     // Before/After with droppable slots
     if (type.includes('before') || type.includes('after')) {
       return (
-        <div className="flex gap-2 h-full">
+        <div className="flex gap-2 h-full items-center">
           {/* Before Slot */}
           <div 
-            className={`flex-1 relative overflow-hidden rounded-xl transition-all ${
+            className={`flex-1 h-full relative overflow-hidden rounded-xl transition-all ${
               dropTargetSlot === 0 
                 ? 'ring-4 ring-primary ring-offset-2 ring-offset-background scale-[1.02]' 
                 : 'hover:ring-2 hover:ring-primary/30'
@@ -295,7 +306,6 @@ export const LayoutEditMode = ({ layout, photos, onUpdateLayout, companyDetails 
                 <Plus className="h-8 w-8 text-muted-foreground" />
               </div>
             )}
-            {/* Drop hint overlay */}
             {dropTargetSlot === 0 && (
               <div className="absolute inset-0 bg-primary/20 flex items-center justify-center">
                 <div className="bg-primary text-primary-foreground px-4 py-2 rounded-lg font-medium flex items-center gap-2">
@@ -306,9 +316,20 @@ export const LayoutEditMode = ({ layout, photos, onUpdateLayout, companyDetails 
             )}
           </div>
           
+          {/* Swap Button */}
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={swapBeforeAfterPhotos}
+            className="flex-shrink-0 h-10 w-10 rounded-full bg-background/80 backdrop-blur-sm border-border hover:bg-primary hover:text-primary-foreground transition-colors z-10"
+            title="Swap before and after"
+          >
+            <ArrowLeftRight className="h-4 w-4" />
+          </Button>
+          
           {/* After Slot */}
           <div 
-            className={`flex-1 relative overflow-hidden rounded-xl transition-all ${
+            className={`flex-1 h-full relative overflow-hidden rounded-xl transition-all ${
               dropTargetSlot === 1 
                 ? 'ring-4 ring-primary ring-offset-2 ring-offset-background scale-[1.02]' 
                 : 'hover:ring-2 hover:ring-primary/30'
@@ -327,7 +348,6 @@ export const LayoutEditMode = ({ layout, photos, onUpdateLayout, companyDetails 
                 <Plus className="h-8 w-8 text-muted-foreground" />
               </div>
             )}
-            {/* Drop hint overlay */}
             {dropTargetSlot === 1 && (
               <div className="absolute inset-0 bg-primary/20 flex items-center justify-center">
                 <div className="bg-primary text-primary-foreground px-4 py-2 rounded-lg font-medium flex items-center gap-2">
