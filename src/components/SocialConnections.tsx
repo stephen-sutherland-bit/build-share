@@ -7,112 +7,48 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 
-interface SocialConnection {
-  id: string;
-  platform: string;
-  platform_username: string | null;
-  expires_at: string | null;
-  created_at: string;
+interface LinkedIdentity {
+  provider: string;
+  identity_data?: {
+    name?: string;
+    email?: string;
+    full_name?: string;
+  };
 }
 
 export const SocialConnections = () => {
   const { user } = useAuth();
-  const [connections, setConnections] = useState<SocialConnection[]>([]);
   const [loading, setLoading] = useState(true);
   const [connecting, setConnecting] = useState<string | null>(null);
   const [disconnecting, setDisconnecting] = useState<string | null>(null);
+  const [linkedInIdentity, setLinkedInIdentity] = useState<LinkedIdentity | null>(null);
 
   useEffect(() => {
     if (user) {
-      loadConnections();
+      loadIdentities();
     }
   }, [user]);
 
-  // Handle OAuth callback (works in both popup and main window)
-  useEffect(() => {
-    const handleOAuthCallback = async () => {
-      const urlParams = new URLSearchParams(window.location.search);
-      const code = urlParams.get('code');
-      const state = urlParams.get('state');
-      const error = urlParams.get('error');
-
-      if (error) {
-        toast.error(`LinkedIn authorization failed: ${error}`);
-        window.history.replaceState({}, document.title, window.location.pathname);
-        // Close popup if this is a popup window
-        if (window.opener) {
-          window.close();
-        }
-        return;
-      }
-
-      if (code && state === 'linkedin_auth' && user) {
-        setConnecting('linkedin');
-        try {
-          const response = await fetch(
-            `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/linkedin-auth?action=exchange-code`,
-            {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                code,
-                userId: user.id
-              })
-            }
-          );
-
-          const data = await response.json();
-
-          if (data.success) {
-            toast.success(`Connected to LinkedIn as ${data.username}`);
-            loadConnections();
-            // Close popup and notify parent window if this is a popup
-            if (window.opener) {
-              window.opener.postMessage({ type: 'linkedin_connected' }, '*');
-              window.close();
-            }
-          } else {
-            toast.error(data.error || 'Failed to connect to LinkedIn');
-          }
-        } catch (err) {
-          console.error('OAuth callback error:', err);
-          toast.error('Failed to complete LinkedIn connection');
-        } finally {
-          setConnecting(null);
-          window.history.replaceState({}, document.title, window.location.pathname);
-        }
-      }
-    };
-
-    handleOAuthCallback();
-  }, [user]);
-
-  // Listen for messages from popup window
-  useEffect(() => {
-    const handleMessage = (event: MessageEvent) => {
-      if (event.data?.type === 'linkedin_connected') {
-        loadConnections();
-        toast.success('LinkedIn connected successfully!');
-      }
-    };
-
-    window.addEventListener('message', handleMessage);
-    return () => window.removeEventListener('message', handleMessage);
-  }, []);
-
-  const loadConnections = async () => {
-    if (!user) return;
-
+  const loadIdentities = async () => {
     try {
-      const { data, error } = await supabase
-        .from('social_connections')
-        .select('id, platform, platform_username, expires_at, created_at')
-        .eq('user_id', user.id);
-
-      if (error) throw error;
-      setConnections(data || []);
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
+      
+      if (currentUser?.identities) {
+        const linkedin = currentUser.identities.find(
+          (id) => id.provider === 'linkedin_oidc'
+        );
+        
+        if (linkedin) {
+          setLinkedInIdentity({
+            provider: linkedin.provider,
+            identity_data: linkedin.identity_data as LinkedIdentity['identity_data']
+          });
+        } else {
+          setLinkedInIdentity(null);
+        }
+      }
     } catch (err) {
-      console.error('Error loading connections:', err);
+      console.error('Error loading identities:', err);
     } finally {
       setLoading(false);
     }
@@ -123,45 +59,19 @@ export const SocialConnections = () => {
     setConnecting('linkedin');
 
     try {
-      const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/linkedin-auth?action=get-auth-url`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            state: 'linkedin_auth'
-          })
+      const { data, error } = await supabase.auth.linkIdentity({
+        provider: 'linkedin_oidc',
+        options: {
+          redirectTo: `${window.location.origin}/settings`
         }
-      );
+      });
 
-      const data = await response.json();
-
-      if (data.authUrl) {
-        // Open LinkedIn OAuth in a popup window (avoids iframe restrictions)
-        const width = 600;
-        const height = 700;
-        const left = window.screenX + (window.outerWidth - width) / 2;
-        const top = window.screenY + (window.outerHeight - height) / 2;
-        
-        const popup = window.open(
-          data.authUrl,
-          'linkedin_oauth',
-          `width=${width},height=${height},left=${left},top=${top},scrollbars=yes,status=yes`
-        );
-
-        // Poll for popup closure and check for OAuth callback
-        const pollTimer = setInterval(() => {
-          if (popup?.closed) {
-            clearInterval(pollTimer);
-            setConnecting(null);
-            // Reload connections in case OAuth completed
-            loadConnections();
-          }
-        }, 500);
-      } else {
-        toast.error(data.error || 'Failed to get LinkedIn authorization URL');
+      if (error) {
+        console.error('LinkedIn link error:', error);
+        toast.error(error.message || 'Failed to connect LinkedIn');
         setConnecting(null);
       }
+      // If successful, user will be redirected to LinkedIn
     } catch (err) {
       console.error('Connect error:', err);
       toast.error('Failed to start LinkedIn connection');
@@ -169,27 +79,30 @@ export const SocialConnections = () => {
     }
   };
 
-  const disconnectPlatform = async (platform: string) => {
+  const disconnectLinkedIn = async () => {
     if (!user) return;
-    setDisconnecting(platform);
+    setDisconnecting('linkedin');
 
     try {
-      const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/linkedin-auth?action=disconnect`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ userId: user.id })
-        }
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
+      const linkedinIdentity = currentUser?.identities?.find(
+        (id) => id.provider === 'linkedin_oidc'
       );
 
-      const data = await response.json();
+      if (!linkedinIdentity) {
+        toast.error('LinkedIn identity not found');
+        setDisconnecting(null);
+        return;
+      }
 
-      if (data.success) {
-        toast.success('Disconnected from LinkedIn');
-        loadConnections();
+      const { error } = await supabase.auth.unlinkIdentity(linkedinIdentity);
+
+      if (error) {
+        console.error('Unlink error:', error);
+        toast.error(error.message || 'Failed to disconnect LinkedIn');
       } else {
-        toast.error(data.error || 'Failed to disconnect');
+        toast.success('Disconnected from LinkedIn');
+        setLinkedInIdentity(null);
       }
     } catch (err) {
       console.error('Disconnect error:', err);
@@ -199,16 +112,42 @@ export const SocialConnections = () => {
     }
   };
 
-  const getConnectionForPlatform = (platform: string) => {
-    return connections.find(c => c.platform === platform);
-  };
+  // Check for OAuth callback on mount
+  useEffect(() => {
+    const checkOAuthCallback = async () => {
+      const hashParams = new URLSearchParams(window.location.hash.slice(1));
+      const queryParams = new URLSearchParams(window.location.search);
+      
+      const error = hashParams.get('error') || queryParams.get('error');
+      const errorDescription = hashParams.get('error_description') || queryParams.get('error_description');
+      
+      if (error) {
+        toast.error(errorDescription || `LinkedIn connection failed: ${error}`);
+        window.history.replaceState({}, document.title, window.location.pathname);
+        return;
+      }
 
-  const isTokenExpired = (expiresAt: string | null) => {
-    if (!expiresAt) return false;
-    return new Date(expiresAt) < new Date();
-  };
+      // If we just came back from OAuth, refresh identities
+      if (window.location.hash || queryParams.has('code')) {
+        await loadIdentities();
+        window.history.replaceState({}, document.title, window.location.pathname);
+        
+        if (linkedInIdentity) {
+          toast.success('LinkedIn connected successfully!');
+        }
+      }
+    };
 
-  const linkedInConnection = getConnectionForPlatform('linkedin');
+    checkOAuthCallback();
+  }, []);
+
+  const getDisplayName = () => {
+    if (!linkedInIdentity?.identity_data) return 'Connected';
+    return linkedInIdentity.identity_data.full_name || 
+           linkedInIdentity.identity_data.name || 
+           linkedInIdentity.identity_data.email || 
+           'Connected';
+  };
 
   return (
     <Card className="shadow-medium border-border/50">
@@ -241,25 +180,16 @@ export const SocialConnections = () => {
                 <div>
                   <div className="flex items-center gap-2">
                     <span className="font-medium">LinkedIn</span>
-                    {linkedInConnection && (
-                      <>
-                        {isTokenExpired(linkedInConnection.expires_at) ? (
-                          <Badge variant="destructive" className="text-xs">
-                            <AlertCircle className="h-3 w-3 mr-1" />
-                            Expired
-                          </Badge>
-                        ) : (
-                          <Badge variant="secondary" className="text-xs bg-green-500/10 text-green-600">
-                            <CheckCircle2 className="h-3 w-3 mr-1" />
-                            Connected
-                          </Badge>
-                        )}
-                      </>
+                    {linkedInIdentity && (
+                      <Badge variant="secondary" className="text-xs bg-green-500/10 text-green-600">
+                        <CheckCircle2 className="h-3 w-3 mr-1" />
+                        Connected
+                      </Badge>
                     )}
                   </div>
-                  {linkedInConnection ? (
+                  {linkedInIdentity ? (
                     <p className="text-sm text-muted-foreground">
-                      {linkedInConnection.platform_username || 'Connected'}
+                      {getDisplayName()}
                     </p>
                   ) : (
                     <p className="text-sm text-muted-foreground">
@@ -269,11 +199,11 @@ export const SocialConnections = () => {
                 </div>
               </div>
               
-              {linkedInConnection ? (
+              {linkedInIdentity ? (
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => disconnectPlatform('linkedin')}
+                  onClick={disconnectLinkedIn}
                   disabled={disconnecting === 'linkedin'}
                   className="text-destructive hover:text-destructive hover:bg-destructive/10"
                 >
@@ -328,7 +258,7 @@ export const SocialConnections = () => {
 
         <div className="pt-4 border-t border-border/50">
           <p className="text-xs text-muted-foreground">
-            Your social media credentials are encrypted and stored securely. We only request the minimum permissions needed to post on your behalf.
+            Your social media credentials are managed securely through our authentication system.
           </p>
         </div>
       </CardContent>
