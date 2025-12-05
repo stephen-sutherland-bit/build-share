@@ -15,7 +15,8 @@ import {
   Rows3,
   X,
   Plus,
-  GripVertical
+  GripVertical,
+  Replace
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -83,8 +84,11 @@ export const LayoutEditMode = ({ layout, photos, onUpdateLayout, companyDetails 
   const [isRegenerating, setIsRegenerating] = useState(false);
   const [aiSuggestions, setAiSuggestions] = useState<Layout[] | null>(null);
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+  const [draggedFromAvailable, setDraggedFromAvailable] = useState<number | null>(null);
+  const [dropTargetSlot, setDropTargetSlot] = useState<number | null>(null);
 
   const currentLayoutConfig = LAYOUT_TYPES.find(l => l.type === selectedLayoutType);
+  const isBeforeAfterMode = selectedLayoutType === 'Before/After';
 
   const togglePhotoSelection = (photoIndex: number) => {
     setSelectedPhotoIndices(prev => {
@@ -104,6 +108,15 @@ export const LayoutEditMode = ({ layout, photos, onUpdateLayout, companyDetails 
     });
   };
 
+  const replacePhotoAtSlot = (slotIndex: number, newPhotoIndex: number) => {
+    setSelectedPhotoIndices(prev => {
+      const newOrder = [...prev];
+      newOrder[slotIndex] = newPhotoIndex;
+      return newOrder;
+    });
+    toast.success(`Replaced photo in slot ${slotIndex + 1}`);
+  };
+
   const movePhoto = (currentIndex: number, direction: 'left' | 'right') => {
     const newIndex = direction === 'left' ? currentIndex - 1 : currentIndex + 1;
     if (newIndex < 0 || newIndex >= selectedPhotoIndices.length) return;
@@ -115,8 +128,10 @@ export const LayoutEditMode = ({ layout, photos, onUpdateLayout, companyDetails 
     setSelectedPhotoIndices(newOrder);
   };
 
+  // Drag from reorder strip
   const handleDragStart = (index: number) => {
     setDraggedIndex(index);
+    setDraggedFromAvailable(null);
   };
 
   const handleDragOver = (e: React.DragEvent, targetIndex: number) => {
@@ -133,6 +148,38 @@ export const LayoutEditMode = ({ layout, photos, onUpdateLayout, companyDetails 
 
   const handleDragEnd = () => {
     setDraggedIndex(null);
+    setDraggedFromAvailable(null);
+    setDropTargetSlot(null);
+  };
+
+  // Drag from available photos
+  const handleAvailableDragStart = (e: React.DragEvent, photoIndex: number) => {
+    setDraggedFromAvailable(photoIndex);
+    setDraggedIndex(null);
+    e.dataTransfer.setData('photoIndex', String(photoIndex));
+  };
+
+  // Drop on preview slot
+  const handleSlotDrop = (e: React.DragEvent, slotIndex: number) => {
+    e.preventDefault();
+    setDropTargetSlot(null);
+    
+    const photoIndex = e.dataTransfer.getData('photoIndex');
+    if (photoIndex) {
+      replacePhotoAtSlot(slotIndex, parseInt(photoIndex, 10));
+    } else if (draggedFromAvailable !== null) {
+      replacePhotoAtSlot(slotIndex, draggedFromAvailable);
+    }
+    setDraggedFromAvailable(null);
+  };
+
+  const handleSlotDragOver = (e: React.DragEvent, slotIndex: number) => {
+    e.preventDefault();
+    setDropTargetSlot(slotIndex);
+  };
+
+  const handleSlotDragLeave = () => {
+    setDropTargetSlot(null);
   };
 
   const applyChanges = () => {
@@ -210,7 +257,7 @@ export const LayoutEditMode = ({ layout, photos, onUpdateLayout, companyDetails 
     toast.success(`Applied ${suggestion.type} layout!`);
   };
 
-  // Render the live preview based on layout type
+  // Render the live preview based on layout type with drop zones for Before/After
   const renderLivePreview = () => {
     const selectedPhotos = selectedPhotoIndices.map(idx => photos[idx]).filter(Boolean);
     if (selectedPhotos.length === 0) {
@@ -223,24 +270,71 @@ export const LayoutEditMode = ({ layout, photos, onUpdateLayout, companyDetails 
 
     const type = selectedLayoutType.toLowerCase();
 
-    // Before/After
+    // Before/After with droppable slots
     if (type.includes('before') || type.includes('after')) {
       return (
-        <div className="flex gap-1 h-full">
-          <div className="flex-1 relative overflow-hidden rounded-lg">
-            {selectedPhotos[0] && (
+        <div className="flex gap-2 h-full">
+          {/* Before Slot */}
+          <div 
+            className={`flex-1 relative overflow-hidden rounded-xl transition-all ${
+              dropTargetSlot === 0 
+                ? 'ring-4 ring-primary ring-offset-2 ring-offset-background scale-[1.02]' 
+                : 'hover:ring-2 hover:ring-primary/30'
+            }`}
+            onDragOver={(e) => handleSlotDragOver(e, 0)}
+            onDragLeave={handleSlotDragLeave}
+            onDrop={(e) => handleSlotDrop(e, 0)}
+          >
+            {selectedPhotos[0] ? (
               <>
                 <img src={selectedPhotos[0].url} alt="Before" className="w-full h-full object-cover" />
-                <span className="absolute bottom-2 left-2 bg-black/70 text-white text-xs px-2 py-1 rounded">BEFORE</span>
+                <span className="absolute bottom-3 left-3 bg-black/80 text-white text-sm font-medium px-3 py-1.5 rounded-lg">BEFORE</span>
               </>
+            ) : (
+              <div className="w-full h-full flex items-center justify-center bg-muted/50 border-2 border-dashed border-border">
+                <Plus className="h-8 w-8 text-muted-foreground" />
+              </div>
+            )}
+            {/* Drop hint overlay */}
+            {dropTargetSlot === 0 && (
+              <div className="absolute inset-0 bg-primary/20 flex items-center justify-center">
+                <div className="bg-primary text-primary-foreground px-4 py-2 rounded-lg font-medium flex items-center gap-2">
+                  <Replace className="h-4 w-4" />
+                  Drop to replace
+                </div>
+              </div>
             )}
           </div>
-          <div className="flex-1 relative overflow-hidden rounded-lg">
-            {selectedPhotos[1] && (
+          
+          {/* After Slot */}
+          <div 
+            className={`flex-1 relative overflow-hidden rounded-xl transition-all ${
+              dropTargetSlot === 1 
+                ? 'ring-4 ring-primary ring-offset-2 ring-offset-background scale-[1.02]' 
+                : 'hover:ring-2 hover:ring-primary/30'
+            }`}
+            onDragOver={(e) => handleSlotDragOver(e, 1)}
+            onDragLeave={handleSlotDragLeave}
+            onDrop={(e) => handleSlotDrop(e, 1)}
+          >
+            {selectedPhotos[1] ? (
               <>
                 <img src={selectedPhotos[1].url} alt="After" className="w-full h-full object-cover" />
-                <span className="absolute bottom-2 right-2 bg-primary text-primary-foreground text-xs px-2 py-1 rounded">AFTER</span>
+                <span className="absolute bottom-3 right-3 bg-primary text-primary-foreground text-sm font-medium px-3 py-1.5 rounded-lg">AFTER</span>
               </>
+            ) : (
+              <div className="w-full h-full flex items-center justify-center bg-muted/50 border-2 border-dashed border-border">
+                <Plus className="h-8 w-8 text-muted-foreground" />
+              </div>
+            )}
+            {/* Drop hint overlay */}
+            {dropTargetSlot === 1 && (
+              <div className="absolute inset-0 bg-primary/20 flex items-center justify-center">
+                <div className="bg-primary text-primary-foreground px-4 py-2 rounded-lg font-medium flex items-center gap-2">
+                  <Replace className="h-4 w-4" />
+                  Drop to replace
+                </div>
+              </div>
             )}
           </div>
         </div>
@@ -274,12 +368,10 @@ export const LayoutEditMode = ({ layout, photos, onUpdateLayout, companyDetails 
     if (type.includes('collage')) {
       return (
         <div className="grid grid-cols-3 grid-rows-2 gap-1 h-full">
-          {/* Hero photo */}
           <div className="col-span-2 row-span-2 relative overflow-hidden rounded-lg">
             <img src={selectedPhotos[0]?.url} alt="Main" className="w-full h-full object-cover" />
             <span className="absolute bottom-1 left-1 bg-black/60 text-white text-[10px] px-1 rounded">1 (Hero)</span>
           </div>
-          {/* Right column */}
           <div className="relative overflow-hidden rounded-lg">
             {selectedPhotos[1] && <img src={selectedPhotos[1].url} alt="" className="w-full h-full object-cover" />}
             <span className="absolute bottom-1 left-1 bg-black/60 text-white text-[10px] px-1 rounded">2</span>
@@ -310,7 +402,6 @@ export const LayoutEditMode = ({ layout, photos, onUpdateLayout, companyDetails 
     // Carousel / Slideshow
     return (
       <div className="h-full flex flex-col gap-2">
-        {/* Main preview */}
         <div className="flex-1 relative overflow-hidden rounded-lg">
           <img src={selectedPhotos[0]?.url} alt="" className="w-full h-full object-cover" />
           <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1">
@@ -320,7 +411,6 @@ export const LayoutEditMode = ({ layout, photos, onUpdateLayout, companyDetails 
             {selectedPhotos.length > 8 && <span className="text-white text-xs">+{selectedPhotos.length - 8}</span>}
           </div>
         </div>
-        {/* Thumbnail strip */}
         <div className="flex gap-1 h-12 overflow-x-auto">
           {selectedPhotos.slice(0, 10).map((photo, i) => (
             <div key={i} className={`relative h-full aspect-square flex-shrink-0 rounded overflow-hidden border-2 ${i === 0 ? 'border-primary' : 'border-transparent'}`}>
@@ -351,71 +441,82 @@ export const LayoutEditMode = ({ layout, photos, onUpdateLayout, companyDetails 
           {renderLivePreview()}
         </div>
         
-        {/* Selected photos strip with drag reorder */}
-        <div className="mt-4">
-          <div className="flex items-center justify-between mb-2">
-            <p className="text-xs font-medium">Photo Order (drag to reorder)</p>
-            <Badge variant={
-              currentLayoutConfig && 
-              selectedPhotoIndices.length >= currentLayoutConfig.minPhotos && 
-              selectedPhotoIndices.length <= currentLayoutConfig.maxPhotos 
-                ? 'default' 
-                : 'destructive'
-            } className="text-xs">
-              {selectedPhotoIndices.length}/{currentLayoutConfig?.maxPhotos || '?'}
-            </Badge>
-          </div>
-          <div className="flex gap-2 overflow-x-auto pb-2 p-2 bg-muted/20 rounded-lg min-h-[80px]">
-            {selectedPhotoIndices.map((photoIdx, orderIdx) => (
-              <div
-                key={`${photoIdx}-${orderIdx}`}
-                draggable
-                onDragStart={() => handleDragStart(orderIdx)}
-                onDragOver={(e) => handleDragOver(e, orderIdx)}
-                onDragEnd={handleDragEnd}
-                className={`relative flex-shrink-0 group cursor-grab active:cursor-grabbing ${draggedIndex === orderIdx ? 'opacity-50' : ''}`}
-              >
-                <div className="w-16 h-16 rounded-lg overflow-hidden border-2 border-primary shadow-md relative">
-                  <img src={photos[photoIdx]?.url} alt="" className="w-full h-full object-cover" />
-                  <div className="absolute top-0 left-0 w-5 h-5 bg-primary text-primary-foreground text-[10px] font-bold flex items-center justify-center rounded-br">
-                    {orderIdx + 1}
+        {/* Selected photos strip with drag reorder - hidden for Before/After */}
+        {!isBeforeAfterMode && (
+          <div className="mt-4">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-xs font-medium">Photo Order (drag to reorder)</p>
+              <Badge variant={
+                currentLayoutConfig && 
+                selectedPhotoIndices.length >= currentLayoutConfig.minPhotos && 
+                selectedPhotoIndices.length <= currentLayoutConfig.maxPhotos 
+                  ? 'default' 
+                  : 'destructive'
+              } className="text-xs">
+                {selectedPhotoIndices.length}/{currentLayoutConfig?.maxPhotos || '?'}
+              </Badge>
+            </div>
+            <div className="flex gap-2 overflow-x-auto pb-2 p-2 bg-muted/20 rounded-lg min-h-[80px]">
+              {selectedPhotoIndices.map((photoIdx, orderIdx) => (
+                <div
+                  key={`${photoIdx}-${orderIdx}`}
+                  draggable
+                  onDragStart={() => handleDragStart(orderIdx)}
+                  onDragOver={(e) => handleDragOver(e, orderIdx)}
+                  onDragEnd={handleDragEnd}
+                  className={`relative flex-shrink-0 group cursor-grab active:cursor-grabbing ${draggedIndex === orderIdx ? 'opacity-50' : ''}`}
+                >
+                  <div className="w-16 h-16 rounded-lg overflow-hidden border-2 border-primary shadow-md relative">
+                    <img src={photos[photoIdx]?.url} alt="" className="w-full h-full object-cover" />
+                    <div className="absolute top-0 left-0 w-5 h-5 bg-primary text-primary-foreground text-[10px] font-bold flex items-center justify-center rounded-br">
+                      {orderIdx + 1}
+                    </div>
+                    <button
+                      onClick={() => togglePhotoSelection(photoIdx)}
+                      className="absolute top-0 right-0 w-4 h-4 bg-destructive text-destructive-foreground rounded-bl flex items-center justify-center hover:bg-destructive/80"
+                    >
+                      <X className="h-2.5 w-2.5" />
+                    </button>
+                    <div className="absolute bottom-0 inset-x-0 h-4 bg-gradient-to-t from-black/60 to-transparent flex items-end justify-center pb-0.5">
+                      <GripVertical className="h-3 w-3 text-white/70" />
+                    </div>
                   </div>
-                  <button
-                    onClick={() => togglePhotoSelection(photoIdx)}
-                    className="absolute top-0 right-0 w-4 h-4 bg-destructive text-destructive-foreground rounded-bl flex items-center justify-center hover:bg-destructive/80"
-                  >
-                    <X className="h-2.5 w-2.5" />
-                  </button>
-                  <div className="absolute bottom-0 inset-x-0 h-4 bg-gradient-to-t from-black/60 to-transparent flex items-end justify-center pb-0.5">
-                    <GripVertical className="h-3 w-3 text-white/70" />
+                  <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                    <button
+                      onClick={() => movePhoto(orderIdx, 'left')}
+                      disabled={orderIdx === 0}
+                      className="w-4 h-4 bg-background border border-border rounded flex items-center justify-center hover:bg-muted disabled:opacity-30"
+                    >
+                      <ChevronLeft className="h-2.5 w-2.5" />
+                    </button>
+                    <button
+                      onClick={() => movePhoto(orderIdx, 'right')}
+                      disabled={orderIdx === selectedPhotoIndices.length - 1}
+                      className="w-4 h-4 bg-background border border-border rounded flex items-center justify-center hover:bg-muted disabled:opacity-30"
+                    >
+                      <ChevronRight className="h-2.5 w-2.5" />
+                    </button>
                   </div>
                 </div>
-                {/* Arrow controls on hover */}
-                <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity z-10">
-                  <button
-                    onClick={() => movePhoto(orderIdx, 'left')}
-                    disabled={orderIdx === 0}
-                    className="w-4 h-4 bg-background border border-border rounded flex items-center justify-center hover:bg-muted disabled:opacity-30"
-                  >
-                    <ChevronLeft className="h-2.5 w-2.5" />
-                  </button>
-                  <button
-                    onClick={() => movePhoto(orderIdx, 'right')}
-                    disabled={orderIdx === selectedPhotoIndices.length - 1}
-                    className="w-4 h-4 bg-background border border-border rounded flex items-center justify-center hover:bg-muted disabled:opacity-30"
-                  >
-                    <ChevronRight className="h-2.5 w-2.5" />
-                  </button>
+              ))}
+              {selectedPhotoIndices.length === 0 && (
+                <div className="flex-1 flex items-center justify-center text-muted-foreground text-sm">
+                  Click photos to add
                 </div>
-              </div>
-            ))}
-            {selectedPhotoIndices.length === 0 && (
-              <div className="flex-1 flex items-center justify-center text-muted-foreground text-sm">
-                Click photos to add
-              </div>
-            )}
+              )}
+            </div>
           </div>
-        </div>
+        )}
+
+        {/* Before/After specific hint */}
+        {isBeforeAfterMode && (
+          <div className="mt-4 p-3 bg-primary/5 border border-primary/10 rounded-lg">
+            <p className="text-xs text-muted-foreground flex items-center gap-2">
+              <Replace className="h-4 w-4 text-primary" />
+              <span><strong>Drag photos</strong> from the right and <strong>drop onto the preview</strong> to swap them</span>
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Right Column: Controls */}
@@ -454,15 +555,49 @@ export const LayoutEditMode = ({ layout, photos, onUpdateLayout, companyDetails 
           </div>
         </div>
 
-        {/* Available Photos Grid */}
+        {/* Available Photos Grid - draggable for Before/After */}
         <div>
-          <h4 className="text-sm font-semibold mb-2">Add Photos</h4>
+          <h4 className="text-sm font-semibold mb-2">
+            {isBeforeAfterMode ? 'Drag to Replace' : 'Add Photos'}
+          </h4>
           <div className="grid grid-cols-5 sm:grid-cols-6 gap-1.5 max-h-40 overflow-y-auto p-2 bg-muted/20 rounded-lg">
-            {availablePhotos.length === 0 ? (
-              <p className="col-span-full text-xs text-muted-foreground text-center py-4">All photos selected</p>
+            {photos.length === 0 ? (
+              <p className="col-span-full text-xs text-muted-foreground text-center py-4">No photos available</p>
             ) : (
               photos.map((photo, idx) => {
                 const isSelected = selectedPhotoIndices.includes(idx);
+                
+                // For Before/After, show all photos as draggable
+                if (isBeforeAfterMode) {
+                  return (
+                    <motion.div
+                      key={idx}
+                      draggable
+                      onDragStart={(e) => handleAvailableDragStart(e as unknown as React.DragEvent, idx)}
+                      onDragEnd={handleDragEnd}
+                      className={`relative aspect-square rounded-lg overflow-hidden border-2 transition-all cursor-grab active:cursor-grabbing ${
+                        isSelected 
+                          ? 'border-primary/50 opacity-60' 
+                          : 'border-transparent hover:border-primary/60'
+                      } ${draggedFromAvailable === idx ? 'opacity-50 scale-95' : ''}`}
+                      whileHover={{ scale: 1.05 }}
+                    >
+                      <img src={photo.url} alt="" className="w-full h-full object-cover" />
+                      {isSelected && (
+                        <div className="absolute inset-0 bg-primary/30 flex items-center justify-center">
+                          <span className="text-white text-[10px] font-bold bg-primary/80 px-1.5 py-0.5 rounded">
+                            {selectedPhotoIndices.indexOf(idx) === 0 ? 'BEFORE' : 'AFTER'}
+                          </span>
+                        </div>
+                      )}
+                      <span className="absolute bottom-0 left-0 right-0 text-[8px] bg-black/60 text-white text-center">
+                        #{idx + 1}
+                      </span>
+                    </motion.div>
+                  );
+                }
+                
+                // For other layouts, hide selected photos
                 if (isSelected) return null;
                 
                 return (
