@@ -28,7 +28,7 @@ export const SocialConnections = () => {
     }
   }, [user]);
 
-  // Handle OAuth callback
+  // Handle OAuth callback (works in both popup and main window)
   useEffect(() => {
     const handleOAuthCallback = async () => {
       const urlParams = new URLSearchParams(window.location.search);
@@ -38,8 +38,11 @@ export const SocialConnections = () => {
 
       if (error) {
         toast.error(`LinkedIn authorization failed: ${error}`);
-        // Clean up URL
         window.history.replaceState({}, document.title, window.location.pathname);
+        // Close popup if this is a popup window
+        if (window.opener) {
+          window.close();
+        }
         return;
       }
 
@@ -66,6 +69,11 @@ export const SocialConnections = () => {
           if (data.success) {
             toast.success(`Connected to LinkedIn as ${data.username}`);
             loadConnections();
+            // Close popup and notify parent window if this is a popup
+            if (window.opener) {
+              window.opener.postMessage({ type: 'linkedin_connected' }, '*');
+              window.close();
+            }
           } else {
             toast.error(data.error || 'Failed to connect to LinkedIn');
           }
@@ -74,7 +82,6 @@ export const SocialConnections = () => {
           toast.error('Failed to complete LinkedIn connection');
         } finally {
           setConnecting(null);
-          // Clean up URL
           window.history.replaceState({}, document.title, window.location.pathname);
         }
       }
@@ -82,6 +89,19 @@ export const SocialConnections = () => {
 
     handleOAuthCallback();
   }, [user]);
+
+  // Listen for messages from popup window
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      if (event.data?.type === 'linkedin_connected') {
+        loadConnections();
+        toast.success('LinkedIn connected successfully!');
+      }
+    };
+
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, []);
 
   const loadConnections = async () => {
     if (!user) return;
@@ -123,8 +143,27 @@ export const SocialConnections = () => {
       const data = await response.json();
 
       if (data.authUrl) {
-        // Redirect to LinkedIn OAuth
-        window.location.href = data.authUrl;
+        // Open LinkedIn OAuth in a popup window (avoids iframe restrictions)
+        const width = 600;
+        const height = 700;
+        const left = window.screenX + (window.outerWidth - width) / 2;
+        const top = window.screenY + (window.outerHeight - height) / 2;
+        
+        const popup = window.open(
+          data.authUrl,
+          'linkedin_oauth',
+          `width=${width},height=${height},left=${left},top=${top},scrollbars=yes,status=yes`
+        );
+
+        // Poll for popup closure and check for OAuth callback
+        const pollTimer = setInterval(() => {
+          if (popup?.closed) {
+            clearInterval(pollTimer);
+            setConnecting(null);
+            // Reload connections in case OAuth completed
+            loadConnections();
+          }
+        }, 500);
       } else {
         toast.error(data.error || 'Failed to get LinkedIn authorization URL');
         setConnecting(null);
