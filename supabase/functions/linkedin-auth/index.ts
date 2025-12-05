@@ -55,6 +55,8 @@ Deno.serve(async (req) => {
       authUrl.searchParams.set('redirect_uri', redirectUri);
       authUrl.searchParams.set('state', state || crypto.randomUUID());
       authUrl.searchParams.set('scope', scope);
+      // Force fresh login - don't use cached session
+      authUrl.searchParams.set('prompt', 'login');
 
       console.log('Generated LinkedIn auth URL');
 
