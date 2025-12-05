@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -12,6 +12,51 @@ export const useAuth = () => {
   const [session, setSession] = useState<Session | null>(null);
   const [role, setRole] = useState<'admin' | 'user' | null>(null);
   const [loading, setLoading] = useState(true);
+  const [roleError, setRoleError] = useState(false);
+
+  const fetchUserRole = useCallback(async (userId: string, retryCount = 0) => {
+    try {
+      setRoleError(false);
+      const { data, error } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', userId)
+        .single();
+
+      if (error) {
+        if (error.code === 'PGRST116') {
+          // No role found - this is a real "no access" case
+          setRole(null);
+          setRoleError(false);
+        } else {
+          console.error('Error fetching role:', error);
+          // Network or other error - retry
+          if (retryCount < 3) {
+            setTimeout(() => fetchUserRole(userId, retryCount + 1), 1000 * (retryCount + 1));
+            return;
+          }
+          setRoleError(true);
+          setRole(null);
+        }
+      } else {
+        setRole(data?.role ?? null);
+        setRoleError(false);
+      }
+    } catch (error) {
+      console.error('Error fetching role:', error);
+      // Network error - retry
+      if (retryCount < 3) {
+        setTimeout(() => fetchUserRole(userId, retryCount + 1), 1000 * (retryCount + 1));
+        return;
+      }
+      setRoleError(true);
+      setRole(null);
+    } finally {
+      if (retryCount === 0 || retryCount >= 3) {
+        setLoading(false);
+      }
+    }
+  }, []);
 
   useEffect(() => {
     // Set up auth state listener first
@@ -27,6 +72,7 @@ export const useAuth = () => {
           }, 0);
         } else {
           setRole(null);
+          setRoleError(false);
           setLoading(false);
         }
       }
@@ -45,34 +91,7 @@ export const useAuth = () => {
     });
 
     return () => subscription.unsubscribe();
-  }, []);
-
-  const fetchUserRole = async (userId: string) => {
-    try {
-      const { data, error } = await supabase
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', userId)
-        .single();
-
-      if (error) {
-        if (error.code === 'PGRST116') {
-          // No role found
-          setRole(null);
-        } else {
-          console.error('Error fetching role:', error);
-          setRole(null);
-        }
-      } else {
-        setRole(data?.role ?? null);
-      }
-    } catch (error) {
-      console.error('Error fetching role:', error);
-      setRole(null);
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [fetchUserRole]);
 
   const signIn = async (email: string, password: string) => {
     const redirectUrl = `${window.location.origin}/`;
@@ -128,14 +147,23 @@ export const useAuth = () => {
     return role === 'admin' || role === 'user';
   };
 
+  const retryRoleFetch = () => {
+    if (user) {
+      setLoading(true);
+      fetchUserRole(user.id);
+    }
+  };
+
   return {
     user,
     session,
     role,
     loading,
+    roleError,
     signIn,
     signUp,
     signOut,
     hasRole,
+    retryRoleFetch,
   };
 };
