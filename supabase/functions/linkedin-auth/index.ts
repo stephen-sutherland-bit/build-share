@@ -5,6 +5,9 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Hardcode the exact redirect URI that must match LinkedIn app config
+const REDIRECT_URI = 'https://b23f0b96-10c0-4043-84fe-eb9a2f903620.lovableproject.com/settings';
+
 Deno.serve(async (req) => {
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
@@ -36,14 +39,7 @@ Deno.serve(async (req) => {
     // Action: Get OAuth URL to redirect user to LinkedIn
     if (action === 'get-auth-url') {
       const body = await req.json();
-      const { redirectUri, state } = body;
-
-      if (!redirectUri) {
-        return new Response(
-          JSON.stringify({ error: 'redirectUri is required' }),
-          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
+      const { state } = body;
 
       // LinkedIn OAuth 2.0 authorization URL
       // Note: w_member_social scope requires LinkedIn app review/approval
@@ -52,13 +48,13 @@ Deno.serve(async (req) => {
       const authUrl = new URL('https://www.linkedin.com/oauth/v2/authorization');
       authUrl.searchParams.set('response_type', 'code');
       authUrl.searchParams.set('client_id', LINKEDIN_CLIENT_ID);
-      authUrl.searchParams.set('redirect_uri', redirectUri);
+      authUrl.searchParams.set('redirect_uri', REDIRECT_URI);
       authUrl.searchParams.set('state', state || crypto.randomUUID());
       authUrl.searchParams.set('scope', scope);
       // Force fresh login - don't use cached session
       authUrl.searchParams.set('prompt', 'login');
 
-      console.log('Generated LinkedIn auth URL');
+      console.log('Generated LinkedIn auth URL with redirect_uri:', REDIRECT_URI);
 
       return new Response(
         JSON.stringify({ authUrl: authUrl.toString() }),
@@ -69,16 +65,16 @@ Deno.serve(async (req) => {
     // Action: Exchange authorization code for access token
     if (action === 'exchange-code') {
       const body = await req.json();
-      const { code, redirectUri, userId } = body;
+      const { code, userId } = body;
 
-      if (!code || !redirectUri || !userId) {
+      if (!code || !userId) {
         return new Response(
-          JSON.stringify({ error: 'code, redirectUri, and userId are required' }),
+          JSON.stringify({ error: 'code and userId are required' }),
           { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
 
-      console.log('Exchanging code for access token...');
+      console.log('Exchanging code for access token with redirect_uri:', REDIRECT_URI);
 
       // Exchange code for access token
       const tokenResponse = await fetch('https://www.linkedin.com/oauth/v2/accessToken', {
@@ -89,7 +85,7 @@ Deno.serve(async (req) => {
         body: new URLSearchParams({
           grant_type: 'authorization_code',
           code,
-          redirect_uri: redirectUri,
+          redirect_uri: REDIRECT_URI,
           client_id: LINKEDIN_CLIENT_ID,
           client_secret: LINKEDIN_CLIENT_SECRET,
         }),
