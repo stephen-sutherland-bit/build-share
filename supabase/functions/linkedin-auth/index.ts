@@ -46,7 +46,9 @@ Deno.serve(async (req) => {
       }
 
       // LinkedIn OAuth 2.0 authorization URL
-      const scope = 'openid profile email w_member_social';
+      // Note: w_member_social scope requires LinkedIn app review/approval
+      // Start with basic scopes for development, add w_member_social after app is approved
+      const scope = 'openid profile email';
       const authUrl = new URL('https://www.linkedin.com/oauth/v2/authorization');
       authUrl.searchParams.set('response_type', 'code');
       authUrl.searchParams.set('client_id', LINKEDIN_CLIENT_ID);
