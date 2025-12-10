@@ -143,24 +143,114 @@ export const LayoutPreviewModal = ({ isOpen, onClose, layout, photos, onUpdateLa
   }, [isSlideshow, isPlaying, layoutPhotos.length]);
 
   const downloadLayoutPhotos = async () => {
-    const toastId = toast.loading(`Preparing ${layoutPhotos.length} photos...`);
+    const toastId = toast.loading(`Creating ${editableLayout.type} layout...`);
     try {
-      if (layoutPhotos.length === 1) {
+      // For layouts that can be composited, create a single image
+      if ((isBeforeAfter || isCollage || isTriptych || isGrid) && layoutPhotos.length > 1) {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        if (!ctx) throw new Error('Canvas not supported');
+
+        // Load all images first
+        const loadImage = (url: string): Promise<HTMLImageElement> => {
+          return new Promise((resolve, reject) => {
+            const img = new Image();
+            img.crossOrigin = 'anonymous';
+            img.onload = () => resolve(img);
+            img.onerror = reject;
+            img.src = url;
+          });
+        };
+
+        const images = await Promise.all(layoutPhotos.map(p => loadImage(p.url)));
+
+        if (isBeforeAfter && images.length >= 2) {
+          // Side by side before/after
+          const maxHeight = Math.max(images[0].height, images[1].height);
+          const scale0 = maxHeight / images[0].height;
+          const scale1 = maxHeight / images[1].height;
+          const width0 = images[0].width * scale0;
+          const width1 = images[1].width * scale1;
+          canvas.width = width0 + width1 + 10; // 10px gap
+          canvas.height = maxHeight;
+          ctx.fillStyle = '#000';
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+          ctx.drawImage(images[0], 0, 0, width0, maxHeight);
+          ctx.drawImage(images[1], width0 + 10, 0, width1, maxHeight);
+          // Add labels
+          ctx.fillStyle = 'rgba(0,0,0,0.7)';
+          ctx.fillRect(10, maxHeight - 50, 100, 40);
+          ctx.fillRect(width0 + 20, maxHeight - 50, 100, 40);
+          ctx.fillStyle = '#fff';
+          ctx.font = 'bold 24px sans-serif';
+          ctx.fillText('BEFORE', 20, maxHeight - 20);
+          ctx.fillText('AFTER', width0 + 30, maxHeight - 20);
+        } else if (isTriptych && images.length >= 3) {
+          // Three panel horizontal
+          const maxHeight = Math.max(...images.slice(0, 3).map(img => img.height));
+          const widths = images.slice(0, 3).map((img, i) => img.width * (maxHeight / img.height));
+          canvas.width = widths.reduce((a, b) => a + b, 0) + 20;
+          canvas.height = maxHeight;
+          ctx.fillStyle = '#000';
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+          let x = 0;
+          images.slice(0, 3).forEach((img, i) => {
+            ctx.drawImage(img, x, 0, widths[i], maxHeight);
+            x += widths[i] + 10;
+          });
+        } else if (isCollage && images.length >= 4) {
+          // Main large + 3 small on right
+          const size = 1200;
+          canvas.width = size;
+          canvas.height = size * 0.75;
+          ctx.fillStyle = '#000';
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+          const mainW = size * 0.66;
+          const sideW = size * 0.33;
+          const sideH = canvas.height / 3;
+          ctx.drawImage(images[0], 0, 0, mainW, canvas.height);
+          images.slice(1, 4).forEach((img, i) => {
+            ctx.drawImage(img, mainW + 5, i * sideH + (i * 2), sideW - 5, sideH - 4);
+          });
+        } else if (isGrid && images.length >= 4) {
+          // 2x2 grid
+          const cellSize = 600;
+          canvas.width = cellSize * 2 + 10;
+          canvas.height = cellSize * 2 + 10;
+          ctx.fillStyle = '#000';
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+          images.slice(0, 4).forEach((img, i) => {
+            const col = i % 2;
+            const row = Math.floor(i / 2);
+            ctx.drawImage(img, col * (cellSize + 10), row * (cellSize + 10), cellSize, cellSize);
+          });
+        }
+
+        canvas.toBlob((blob) => {
+          if (blob) {
+            saveAs(blob, `${editableLayout.type.replace(/\s/g, '-')}-layout.jpg`);
+            toast.success(`Downloaded ${editableLayout.type} layout!`, { id: toastId });
+          }
+        }, 'image/jpeg', 0.92);
+      } else if (layoutPhotos.length === 1) {
         const response = await fetch(layoutPhotos[0].url);
         const blob = await response.blob();
-        saveAs(blob, `${layout.type.replace(/\s/g, '-')}-photo.jpg`);
+        saveAs(blob, `${editableLayout.type.replace(/\s/g, '-')}-photo.jpg`);
+        toast.success('Downloaded photo!', { id: toastId });
       } else {
+        // For slideshow/carousel, download as zip with numbered sequence
         const zip = new JSZip();
         for (let i = 0; i < layoutPhotos.length; i++) {
           const response = await fetch(layoutPhotos[i].url);
           const blob = await response.blob();
-          zip.file(`${String(i + 1).padStart(2, '0')}_photo.jpg`, blob);
+          zip.file(`${String(i + 1).padStart(2, '0')}_${editableLayout.type.replace(/\s/g, '-')}.jpg`, blob);
         }
         const zipBlob = await zip.generateAsync({ type: 'blob' });
-        saveAs(zipBlob, `${layout.type.replace(/\s/g, '-')}-photos.zip`);
+        saveAs(zipBlob, `${editableLayout.type.replace(/\s/g, '-')}-${layoutPhotos.length}photos.zip`);
+        toast.success(`Downloaded ${layoutPhotos.length} photos in sequence!`, { id: toastId });
       }
-      toast.success(`Downloaded ${layoutPhotos.length} photo${layoutPhotos.length > 1 ? 's' : ''}!`, { id: toastId });
     } catch (error) {
+      console.error('Download error:', error);
       toast.error("Download failed. Try again.", { id: toastId });
     }
   };
