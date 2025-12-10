@@ -405,22 +405,71 @@ Return ONLY valid JSON.`
     const orderingMessages = [
       {
         role: 'system',
-        content: 'You are analyzing construction photos to determine their chronological order. Identify project progression stages: demolition → structural work → finishing → completed. Return ONLY a JSON array of photo indices in chronological order.'
+        content: `You are an expert construction project analyst specializing in visual timeline reconstruction.
+
+Your task is to analyze construction photos and determine their EXACT chronological order based on visual evidence.
+
+## CONSTRUCTION STAGE INDICATORS (earliest to latest):
+
+**Stage 1 - Demolition/Clearing:**
+- Debris, rubble, exposed original materials
+- Tools like sledgehammers, crowbars visible
+- Dust, dirt, chaos
+- Old fixtures being removed
+
+**Stage 2 - Structural/Framing:**
+- Exposed studs, beams, joists
+- Plywood, sheathing visible
+- Wiring, plumbing rough-in
+- No drywall yet
+
+**Stage 3 - Mechanical/Rough-in:**
+- Electrical boxes, wiring runs
+- Plumbing pipes visible
+- HVAC ductwork
+- Insulation installation
+
+**Stage 4 - Drywall/Finishing:**
+- Fresh drywall (mudded joints)
+- Primer or unpainted walls
+- Subfloor visible
+- Trim being installed
+
+**Stage 5 - Final Finishes:**
+- Painted walls
+- Flooring installed
+- Fixtures in place
+- Cabinet/countertop installation
+
+**Stage 6 - Completed/Clean:**
+- Everything finished
+- Clean, staged appearance
+- No tools or materials visible
+- Ready for use
+
+## CRITICAL RULES:
+1. Look at ACTUAL VISUAL CONTENT, not just brightness/cleanliness
+2. Same space photographed at different angles = same stage
+3. Different rooms may be at different stages - order by apparent construction timeline
+4. "Before" photos (showing old/original state) should come BEFORE demolition
+5. Return indices in TRUE chronological order, NOT grouped by room`
       },
       {
         role: 'user',
         content: [
           {
             type: 'text',
-            text: `Analyze ALL ${photos.length} construction photos and return them in chronological order (earliest to latest stage of construction). 
+            text: `Analyze these ${Math.min(photos.length, 80)} construction photos carefully.
 
-Consider:
-- Demolition/clearing stages come first
-- Structural/framing work comes next
-- Finishing work (drywall, painting, fixtures) comes later
-- Completed/clean photos come last
+Look at each photo and identify:
+1. What stage of construction is shown?
+2. What specific visual evidence indicates this stage?
+3. If photos show the same space, which was taken earlier?
 
-Return ONLY a JSON object: {"chronologicalOrder": [array of indices 0 to ${photos.length - 1}]}`
+Return ONLY a JSON object with the chronological order:
+{"chronologicalOrder": [indices from 0 to ${photos.length - 1} in order from earliest stage to latest stage]}
+
+IMPORTANT: Every index from 0 to ${photos.length - 1} must appear exactly once.`
           },
           ...photos.slice(0, 80).map((photo: any) => ({
             type: 'image_url',

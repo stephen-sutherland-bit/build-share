@@ -55,17 +55,29 @@ export const useProjects = () => {
 
       if (error) throw error;
       
-      setProjects(data?.map(p => ({
-        id: p.id,
-        name: p.name,
-        photos: p.photos as unknown as ProcessedContent['photos'],
-        captions: p.captions as unknown as ProcessedContent['captions'],
-        hashtags: p.hashtags as unknown as string[],
-        layouts: p.layouts as unknown as ProcessedContent['layouts'],
-        company_details: p.company_details as unknown as CompanyDetails,
-        created_at: p.created_at,
-        updated_at: p.updated_at,
-      })) || []);
+      setProjects(data?.map(p => {
+        // Parse layouts ensuring photoIndices are preserved
+        const rawLayouts = p.layouts as unknown as ProcessedContent['layouts'] || [];
+        const layouts = rawLayouts.map(layout => ({
+          ...layout,
+          // Ensure indices are numbers, not strings
+          beforePhotoIndex: layout.beforePhotoIndex !== undefined ? Number(layout.beforePhotoIndex) : undefined,
+          afterPhotoIndex: layout.afterPhotoIndex !== undefined ? Number(layout.afterPhotoIndex) : undefined,
+          photoIndices: layout.photoIndices?.map(idx => Number(idx)),
+        }));
+        
+        return {
+          id: p.id,
+          name: p.name,
+          photos: p.photos as unknown as ProcessedContent['photos'],
+          captions: p.captions as unknown as ProcessedContent['captions'],
+          hashtags: p.hashtags as unknown as string[],
+          layouts,
+          company_details: p.company_details as unknown as CompanyDetails,
+          created_at: p.created_at,
+          updated_at: p.updated_at,
+        };
+      }) || []);
     } catch (error) {
       console.error('Error fetching projects:', error);
       toast.error('Failed to load projects');
