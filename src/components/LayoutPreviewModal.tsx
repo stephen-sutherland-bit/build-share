@@ -155,9 +155,15 @@ export const LayoutPreviewModal = ({ isOpen, onClose, layout, photos, onUpdateLa
         const loadImage = (url: string): Promise<HTMLImageElement> => {
           return new Promise((resolve, reject) => {
             const img = new Image();
-            img.crossOrigin = 'anonymous';
+            // Only set crossOrigin for external URLs, NOT for data URLs (base64)
+            if (url.startsWith('http://') || url.startsWith('https://')) {
+              img.crossOrigin = 'anonymous';
+            }
             img.onload = () => resolve(img);
-            img.onerror = reject;
+            img.onerror = (e) => {
+              console.error('Image load failed:', url.substring(0, 100));
+              reject(e);
+            };
             img.src = url;
           });
         };
