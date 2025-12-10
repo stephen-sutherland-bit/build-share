@@ -226,16 +226,44 @@ export const LayoutPreviewModal = ({ isOpen, onClose, layout, photos, onUpdateLa
           });
         }
 
-        canvas.toBlob((blob) => {
-          if (blob) {
-            saveAs(blob, `${editableLayout.type.replace(/\s/g, '-')}-layout.jpg`);
-            toast.success(`Downloaded ${editableLayout.type} layout!`, { id: toastId });
-          }
-        }, 'image/jpeg', 0.92);
+        // Use Promise-based toBlob for proper async handling
+        const blob = await new Promise<Blob | null>((resolve) => {
+          canvas.toBlob((b) => resolve(b), 'image/jpeg', 0.92);
+        });
+        
+        if (!blob) {
+          // Fallback to dataURL if toBlob fails
+          const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
+          const link = document.createElement('a');
+          link.href = dataUrl;
+          link.download = `${editableLayout.type.replace(/\s/g, '-')}-layout.jpg`;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+        } else {
+          // Use native anchor download for reliable binary handling
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.href = url;
+          link.download = `${editableLayout.type.replace(/\s/g, '-')}-layout.jpg`;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          URL.revokeObjectURL(url);
+        }
+        toast.success(`Downloaded ${editableLayout.type} layout!`, { id: toastId });
       } else if (layoutPhotos.length === 1) {
+        // Use native anchor download for single photos too
         const response = await fetch(layoutPhotos[0].url);
         const blob = await response.blob();
-        saveAs(blob, `${editableLayout.type.replace(/\s/g, '-')}-photo.jpg`);
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `${editableLayout.type.replace(/\s/g, '-')}-photo.jpg`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
         toast.success('Downloaded photo!', { id: toastId });
       } else {
         // For slideshow/carousel, download as zip with numbered sequence
