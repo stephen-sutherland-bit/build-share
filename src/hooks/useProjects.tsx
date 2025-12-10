@@ -56,15 +56,15 @@ export const useProjects = () => {
       if (error) throw error;
       
       setProjects(data?.map(p => {
-        // Parse layouts ensuring photoIndices are preserved
-        const rawLayouts = p.layouts as unknown as ProcessedContent['layouts'] || [];
-        const layouts = rawLayouts.map(layout => ({
+        // Parse layouts ensuring photoIndices are preserved - handle null/undefined safely
+        const rawLayouts = (p.layouts as unknown as ProcessedContent['layouts']) || [];
+        const layouts = Array.isArray(rawLayouts) ? rawLayouts.map(layout => ({
           ...layout,
           // Ensure indices are numbers, not strings
-          beforePhotoIndex: layout.beforePhotoIndex !== undefined ? Number(layout.beforePhotoIndex) : undefined,
-          afterPhotoIndex: layout.afterPhotoIndex !== undefined ? Number(layout.afterPhotoIndex) : undefined,
-          photoIndices: layout.photoIndices?.map(idx => Number(idx)),
-        }));
+          beforePhotoIndex: layout?.beforePhotoIndex !== undefined ? Number(layout.beforePhotoIndex) : undefined,
+          afterPhotoIndex: layout?.afterPhotoIndex !== undefined ? Number(layout.afterPhotoIndex) : undefined,
+          photoIndices: Array.isArray(layout?.photoIndices) ? layout.photoIndices.map(idx => Number(idx)) : undefined,
+        })) : [];
         
         return {
           id: p.id,
