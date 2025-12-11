@@ -84,7 +84,10 @@ export const useAuth = () => {
       setUser(session?.user ?? null);
       
       if (session?.user) {
-        fetchUserRole(session.user.id);
+        // Use setTimeout to ensure session is fully established before fetching role
+        setTimeout(() => {
+          fetchUserRole(session.user.id);
+        }, 0);
       } else {
         setLoading(false);
       }
