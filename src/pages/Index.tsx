@@ -108,13 +108,30 @@ const Index = () => {
     }
   };
 
-  const handlePhotosUpload = (files: File[]) => {
-    setUploadedPhotos(files);
-    // Clear previous project when uploading new photos
-    setCurrentProjectId(null);
-    setCurrentProjectName('');
-    setIsSaved(false);
-    toast.success(`${files.length} photos uploaded!`);
+  const handlePhotosUpload = (files: File[], append: boolean = false) => {
+    if (append && uploadedPhotos.length > 0) {
+      const newTotal = uploadedPhotos.length + files.length;
+      const MAX_PHOTOS = 80;
+      if (newTotal > MAX_PHOTOS) {
+        const canAdd = MAX_PHOTOS - uploadedPhotos.length;
+        if (canAdd > 0) {
+          setUploadedPhotos([...uploadedPhotos, ...files.slice(0, canAdd)]);
+          toast.warning(`Added ${canAdd} photos. Maximum ${MAX_PHOTOS} reached.`);
+        } else {
+          toast.error(`Maximum ${MAX_PHOTOS} photos already uploaded.`);
+        }
+      } else {
+        setUploadedPhotos([...uploadedPhotos, ...files]);
+        toast.success(`Added ${files.length} more photos!`);
+      }
+    } else {
+      setUploadedPhotos(files);
+      // Clear previous project when uploading new photos
+      setCurrentProjectId(null);
+      setCurrentProjectName('');
+      setIsSaved(false);
+      toast.success(`${files.length} photos uploaded!`);
+    }
   };
 
   const handleProcess = async () => {
