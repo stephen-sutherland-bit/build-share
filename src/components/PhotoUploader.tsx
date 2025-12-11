@@ -9,7 +9,7 @@ import { toast } from "sonner";
 const MAX_PHOTOS = 80;
 
 interface PhotoUploaderProps {
-  onUpload: (files: File[]) => void;
+  onUpload: (files: File[], append?: boolean) => void;
   onProcess: () => void;
   isProcessing: boolean;
   photoCount: number;
@@ -17,18 +17,32 @@ interface PhotoUploaderProps {
 }
 
 export const PhotoUploader = ({ onUpload, onProcess, isProcessing, photoCount, processingProgress }: PhotoUploaderProps) => {
-  const onDrop = useCallback((acceptedFiles: File[]) => {
+  const handleDrop = useCallback((acceptedFiles: File[], append: boolean = false) => {
     const imageFiles = acceptedFiles.filter(file => file.type.startsWith('image/'));
     if (imageFiles.length !== acceptedFiles.length) {
       toast.error("Only image files are accepted");
     }
-    if (imageFiles.length > MAX_PHOTOS) {
-      toast.warning(`Maximum ${MAX_PHOTOS} photos allowed. Only the first ${MAX_PHOTOS} will be processed.`);
-      onUpload(imageFiles.slice(0, MAX_PHOTOS));
-    } else if (imageFiles.length > 0) {
-      onUpload(imageFiles);
+    
+    if (append) {
+      // When appending, let parent handle the max limit logic
+      if (imageFiles.length > 0) {
+        onUpload(imageFiles, true);
+      }
+    } else {
+      // Fresh upload - apply max limit here
+      if (imageFiles.length > MAX_PHOTOS) {
+        toast.warning(`Maximum ${MAX_PHOTOS} photos allowed. Only the first ${MAX_PHOTOS} will be processed.`);
+        onUpload(imageFiles.slice(0, MAX_PHOTOS), false);
+      } else if (imageFiles.length > 0) {
+        onUpload(imageFiles, false);
+      }
     }
   }, [onUpload]);
+
+  const onDrop = useCallback((acceptedFiles: File[]) => {
+    // If photos already exist, append by default
+    handleDrop(acceptedFiles, photoCount > 0);
+  }, [handleDrop, photoCount]);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
@@ -78,10 +92,18 @@ export const PhotoUploader = ({ onUpload, onProcess, isProcessing, photoCount, p
             </div>
             <div className="space-y-1">
               <p className="text-base font-semibold tracking-tight">
-                {isDragActive ? "Drop photos here" : "Drag & drop photos"}
+                {isDragActive 
+                  ? "Drop photos here" 
+                  : photoCount > 0 
+                    ? "Add more photos" 
+                    : "Drag & drop photos"
+                }
               </p>
               <p className="text-sm text-muted-foreground">
-                or click to browse
+                {photoCount > 0 
+                  ? `or click to add to your ${photoCount} photos`
+                  : "or click to browse"
+                }
               </p>
             </div>
           </div>
